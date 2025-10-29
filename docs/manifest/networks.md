@@ -75,7 +75,7 @@ networks:
   - Lists existing labeled networks and creates any missing ones from `networks:`.
   - Detects drift by inspecting actual driver/options/IPAM vs manifest; if different, safely recreates the network (see below).
   - Labels networks with `io.dockform.identifier=<docker.identifier>`.
-  - Proceeds to run `docker compose up` for applications.
+  - Proceeds to run `docker compose up` for stacks.
 - **destroy**: discovers all labeled resources for the current identifier and removes them, including networks.
 
 Notes:
@@ -91,7 +91,7 @@ docker:
   context: default
   identifier: staging
 
-applications:
+stacks:
   app:
     root: ./app
     project:

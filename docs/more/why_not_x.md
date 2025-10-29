@@ -41,7 +41,7 @@ Dockform builds on top of Compose to provide **ergonomic structure** for these �
 
 ## Ansible, Chef, etc.
 
-Configuration management tools like **Ansible**, **Chef**, or **Puppet** are mature and extremely flexible. They can manage servers, applications, and infrastructure at large scale. But:
+Configuration management tools like **Ansible**, **Chef**, or **Puppet** are mature and extremely flexible. They can manage servers, stacks, and infrastructure at large scale. But:
 
 * They are **general-purpose** and not specialized for Docker Compose deployments
 * While they can be run repeatedly to enforce state, they treat Compose as “just another file” rather than a first-class target

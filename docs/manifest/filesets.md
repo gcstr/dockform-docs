@@ -5,7 +5,7 @@ title: Filesets
 # Filesets
 
 Filesets keep a local directory in sync with a path inside a Docker volume.
-They let you manage application config, assets, or seeds declaratively, without baking files into images.
+They let you manage stack config, assets, or seeds declaratively, without baking files into images.
 
 - **Declarative sync**: define the source, target volume, and target path; Dockform syncs diffs only.
 - **Idempotent and incremental**: only changed, added, or removed files are applied.
@@ -122,10 +122,10 @@ filesets:
 
 **Hot mode workflow:**
 1. Sync files to volume (containers keep running)
-2. Apply application changes via `docker compose up`
+2. Apply stack changes via `docker compose up`
 3. Restart services listed in `restart_services`
 
-This is the fastest mode and works well for most applications that can reload configuration without stopping.
+This is the fastest mode and works well for most stacks that can reload configuration without stopping.
 
 ### Cold Mode
 
@@ -149,7 +149,7 @@ filesets:
 3. Start the previously stopped services
 
 Use cold mode when:
-- The application requires files to be updated only when stopped
+- The stack requires files to be updated only when stopped
 - File changes could corrupt running processes
 - You need atomic file updates across multiple files
 - Database configurations or other critical system files need updating
@@ -166,7 +166,7 @@ Cold mode does nothing if no targets are set (allowed). It only changes the sync
 | Static assets | `hot` | No restart needed, just file sync |
 | Database configs | `cold` | Requires clean shutdown/startup |
 | SSL certificates | `hot` | Most apps can reload certs |
-| Application binaries | `cold` | Files must not change while running |
+| Stack binaries | `cold` | Files must not change while running |
 
 ## Restart targets
 
@@ -221,7 +221,7 @@ When `preserve_existing` is enabled, existing files keep their prior owner and m
 ::: code-group
 
 ```yaml [dockform.yaml]
-applications:
+stacks:
   web:
     root: ./web
     project:
@@ -259,14 +259,14 @@ volumes:
 - Run `dockform plan` to preview volume creation and fileset changes.
 - Run `dockform apply` to sync files, start/update services, and restart any listed services.
 
-## Example: application requiring cold updates
+## Example: stack requiring cold updates
 
-Some applications require that configuration files are only updated when the container is stopped. For example, certain media management tools or databases that lock configuration files:
+Some stacks require that configuration files are only updated when the container is stopped. For example, certain media management tools or databases that lock configuration files:
 
 ::: code-group
 
 ```yaml [dockform.yaml]
-applications:
+stacks:
   media:
     root: ./media
 

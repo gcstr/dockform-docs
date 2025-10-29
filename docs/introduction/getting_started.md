@@ -60,7 +60,7 @@ my-project/
     └── docker-compose.yml
 ```
 
-Each application (`app1`, `app2`, `app3`) has its own folder containing one or more Compose files and optional configuration. The `dockform.yml` manifest ties everything together.
+Each stack (`app1`, `app2`, `app3`) has its own folder containing one or more Compose files and optional configuration. The `dockform.yml` manifest ties everything together.
 
 ---
 

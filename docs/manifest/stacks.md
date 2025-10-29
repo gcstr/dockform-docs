@@ -1,19 +1,19 @@
 ---
-title: Applications
+title: Stacks
 ---
 
-# Applications
+# Stacks
 
-Applications define where your Compose project lives and how Dockform should run it.
-Each application points to a folder (`root`) that contains your compose files and optional env files.
+Stacks define where your Compose project lives and how Dockform should run it.
+Each stack points to a folder (`root`) that contains your compose files and optional env files.
 
 - **Compose-first**: Dockform reads and runs your existing Compose files; it doesn’t replace them.
 - **Inline labeling**: during `apply`, Dockform injects the `io.dockform.identifier` label into services to scope what it manages.
 - **Deterministic**: env files and inline env are merged with clear precedence; defaults are filled consistently.
 
-## Defining applications
+## Defining stacks
 
-Each key under `applications:` defines one app. Minimum required field is `root`.
+Each key under `stacks:` defines one app. Minimum required field is `root`.
 If `files` is omitted, Dockform uses `docker-compose.yaml` (or `.yml`) in that folder.
 
 ```yaml [dockform.yaml]
@@ -27,7 +27,7 @@ environment:
   inline:
     - GLOBAL_ENV=global
 
-applications:
+stacks:
   web:
     root: ./web
     files:
@@ -96,7 +96,7 @@ environment:
   inline:
     - GLOBAL_ENV=global
 
-applications:
+stacks:
   app:
     root: ./app
     files: [docker-compose.yaml]

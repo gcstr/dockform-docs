@@ -18,7 +18,7 @@ Dockform provides several diagnostic commands to help you understand what's happ
 |---------|---------|-------------|
 | `dockform doctor` | Environment health check | Setup validation, troubleshooting failures |
 | `dockform manifest render` | Inspect processed manifest | Debug environment interpolation, validate structure |
-| `dockform compose render` | View resolved Compose config | Debug application-specific issues, inspect final output |
+| `dockform compose render` | View resolved Compose config | Debug stack-specific issues, inspect final output |
 | `--log-file` or `--verbose` | View full execution logs | Debug runtime issues |
 
 ## Validation with `doctor`
@@ -103,10 +103,10 @@ $ dockform manifest render | grep identifier
 
 ### Compose rendering
 
-Render the fully-resolved Docker Compose configuration for a specific application as defined in your Dockform manifest. This command:
+Render the fully-resolved Docker Compose configuration for a specific stack as defined in your Dockform manifest. This command:
 
 - **Loads manifest config** (project, profiles, env files, inline env, SOPS).
-- **Resolves application root** and all referenced compose files.
+- **Resolves stack root** and all referenced compose files.
 - **Merges multiple compose files** and normalizes to a single YAML.
 - **Interpolates compose-style variables**: `${VAR}`, `${VAR:-default}`, `${VAR:?err}`.
 - **Respects profiles/extends/anchors** via docker compose config.
@@ -115,7 +115,7 @@ Render the fully-resolved Docker Compose configuration for a specific applicatio
 Usage:
 
 ```bash [shell ~vscode-icons:file-type-shell~]
-# Render an app by name (from your manifest’s applications map)
+# Render an app by name (from your manifest’s stacks map)
 $ dockform compose render myapp
 
 # Optional flags
@@ -173,7 +173,7 @@ Both `manifest render` and `compose render` commands share common behavior patte
   $ dockform compose render api > debug-compose.yml
   
   # Process with jq (if converted to JSON)
-  $ dockform manifest render | yq eval -o=json | jq '.applications'
+  $ dockform manifest render | yq eval -o=json | jq '.stacks'
   ```
 
 ## Logging and verbose output
@@ -273,7 +273,7 @@ For troubleshooting docker compose config errors independently:
 
 1. **Start with environment validation**: `dockform doctor` to ensure all dependencies are properly configured
 2. **Check manifest processing**: `dockform manifest render` to verify environment interpolation
-3. **Inspect application config**: `dockform compose render <app>` to see the final configuration
+3. **Inspect stack config**: `dockform compose render <app>` to see the final configuration
 4. **Test deployment**: `dockform plan` to preview changes before applying
 
 This systematic approach helps identify issues at each layer of Dockform's processing pipeline.

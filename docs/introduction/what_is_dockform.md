@@ -5,7 +5,7 @@ title: What is Dockform?
 # What is Dockform?
 
 Dockform extends Docker Compose with a fully declarative workflow.  
-It lets you manage not only your Compose applications, but also the supporting resources that normally sit outside of `docker-compose.yml` — such as external networks, volume lifecycles, secrets, and configuration files.
+It lets you manage not only your Compose stacks, but also the supporting resources that normally sit outside of `docker-compose.yml` — such as external networks, volume lifecycles, secrets, and configuration files.
 
 Think of Dockform as the missing declarative layer for everything you’d otherwise configure manually with commands like `docker network create`, `docker volume create`, or ad-hoc shell scripts. All of it is written as code, stored in a manifest, and applied consistently.
 

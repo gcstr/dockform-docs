@@ -173,7 +173,7 @@ dockform volume restore myapp_data snapshot.tar.zst --stop-containers
 
 2. **Staged approach**: For production restores, consider:
    ```bash
-   # 1. Stop application containers
+   # 1. Stop stack containers
    docker compose stop app
 
    # 2. Restore data volume

@@ -71,7 +71,7 @@ In this example, the `traefik_config` volume will be created if missing, even if
 - **apply**:
   - Lists existing labeled volumes and creates any missing ones from `volumes:` and `filesets.target_volume`.
   - Labels volumes with `io.dockform.identifier=<docker.identifier>`.
-  - Proceeds to sync filesets and run `docker compose up` for applications.
+  - Proceeds to sync filesets and run `docker compose up` for stacks.
 - **destroy**: discovers all labeled resources for the current identifier and removes them, including volumes (fileset volumes first, then standalone).
 
 ### Snapshots and restore
@@ -109,7 +109,7 @@ docker:
   context: default
   identifier: staging
 
-applications:
+stacks:
   app:
     root: ./app
     project:

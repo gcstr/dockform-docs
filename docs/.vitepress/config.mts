@@ -99,7 +99,7 @@ export default {
             { text: 'Volumes',          link: '/manifest/volumes' },
             { text: 'Networks',         link: '/manifest/networks' },
             { text: 'Filesets',         link: '/manifest/filesets' },
-            { text: 'Applications',     link: '/manifest/applications' },
+            { text: 'Stacks',           link: '/manifest/stacks' },
           ]
         },
         {

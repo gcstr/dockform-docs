@@ -5,7 +5,7 @@ outline: deep
 
 # The Manifest File
 
-A Dockform manifest is a single YAML file that defines all resources needed for a Compose project. With it, you can declare applications, environment variables, secrets, volumes, networks, and filesets in one place, making your stack fully reproducible and declarative.
+A Dockform manifest is a single YAML file that defines all resources needed for a Compose project. With it, you can declare stacks, environment variables, secrets, volumes, networks, and filesets in one place, making your stack fully reproducible and declarative.
 
 ## Overview
 
@@ -34,7 +34,7 @@ secrets:
   sops:
     - secrets.env
 
-applications:
+stacks:
   web:
     root: ./web
     files:
@@ -108,9 +108,9 @@ Dockform uses this string to label and group all managed resources.
 
 ## Environment Variables
 
-You can define global or app-specific environment variables. Variables declared at the root level apply to all applications. Variables under `applications.<app>.environment` are scoped to that application only.
+You can define global or stack-specific environment variables. Variables declared at the root level apply to all stacks. Variables under `stcks.<app>.environment` are scoped to that stack only.
 
-> In case of conflict, application-specific variables override global variables.
+> In case of conflict, stack-specific variables override global variables.
 
 ::: code-group
 
@@ -124,7 +124,7 @@ environment:
 ```
 
 ```yaml [Scoped]
-applications:
+stacks:
   web:
     environment:
       files:
@@ -150,9 +150,9 @@ Array of `KEY=VALUE` entries declared directly in the manifest.
 
 ## Secrets
 
-Secrets can also be global or app-specific. Root-level secrets are exposed to all applications, while `applications.<app>.secrets` only apply to that app.
+Secrets can also be global or app-specific. Root-level secrets are exposed to all stacks, while `stacks.<app>.secrets` only apply to that app.
 
-> In case of conflict, application-specific secrets override global ones.
+> In case of conflict, stack-specific secrets override global ones.
 
 Secrets are managed with [SOPS](https://github.com/getsops/sops). Dockform supports both **Age** and **PGP (GnuPG)** backends. See [Secrets Workflow](secrets/secrets) for details.
 
@@ -173,7 +173,7 @@ secrets:
 ```
 
 ```yaml [Scoped]
-applications:
+stacks:
   web:
     secrets:
       sops:
@@ -209,15 +209,15 @@ Name of a Docker [named volume](https://docs.docker.com/engine/storage/volumes/)
 
 Name of a Docker [network](https://docs.docker.com/reference/cli/docker/network/create/).
 
-## Applications
+## Stacks
 
-The `applications` block is where all Docker Compose configurations converge.
+The `stacks` block is where all Docker Compose configurations converge.
 
-### `<application_name>` <Badge type="warning" text="required" />
+### `<stack_name>` <Badge type="warning" text="required" />
 * Type: `Map`  
 * Default: `null`
 
-Name of the application.
+Name of the stack.
 
 ### `root` <Badge type="warning" text="required" />
 * Type: `String`  
@@ -226,14 +226,14 @@ Name of the application.
 Path relative to the manifest file. Must contain at least one Docker Compose file.
 
 ::: tip
-All file paths under an application (Compose, dotenv, secrets) are resolved relative to this folder.
+All file paths under an stack (Compose, dotenv, secrets) are resolved relative to this folder.
 :::
 
 ### `files` <Badge type="tip" text="optional" />
 * Type: `Array`  
 * Default: `[docker-compose.yml]` or `[docker-compose.yaml]`
 
-List of Docker Compose files. If omitted, Dockform will look for `docker-compose.yml` or `docker-compose.yaml` in the application root.
+List of Docker Compose files. If omitted, Dockform will look for `docker-compose.yml` or `docker-compose.yaml` in the stack root.
 
 ### `profiles` <Badge type="tip" text="optional" />
 * Type: `Array`  

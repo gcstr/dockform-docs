@@ -43,7 +43,7 @@ filesets:
       - "**/.DS_Store"
 ```
 
-## Applications and Compose
+## Stacks and Compose
 
 - Set a stable `project.name` for predictable container and network names. See https://docs.docker.com/compose/how-tos/project-name/
 - Keep Compose files close to each app’s `root` folder; avoid cross-tree paths.
@@ -86,7 +86,7 @@ Always ensure you have recent backups for stateful volumes before destructive co
 
 ## Suggested project structure
 
-- Dockform is unopinionated, but grouping applications by folder is effective.
+- Dockform is unopinionated, but grouping stacks by folder is effective.
 
 ```text
 repo/

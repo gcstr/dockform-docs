@@ -46,7 +46,7 @@ E.g.:
 ::: code-group
 ```yaml [dockform.yaml]
 ...
-applications:
+stacks:
   website:
     root: website
     environment:

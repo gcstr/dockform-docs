@@ -157,7 +157,7 @@ Dockform passes PGP recipients to SOPS via `--pgp`. If both Age and PGP recipien
 ## Using secrets in your manifest
 
 Reference the encrypted dotenv file inside your manifest.  
-Secrets can be defined globally or scoped to a specific application.
+Secrets can be defined globally or scoped to a specific stack.
 
 ```yaml [dockform.yaml]
 secrets:
@@ -165,10 +165,10 @@ secrets:
     - app/secrets.env
 ```
 
-For application-specific secrets:
+For stack-specific secrets:
 
 ```yaml [dockform.yaml]
-applications:
+stacks:
   web:
     secrets:
       sops:
@@ -201,7 +201,7 @@ environment:
     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
 
-applications:
+stacks:
   app:
     root: ./app
     files: [docker-compose.yaml]
