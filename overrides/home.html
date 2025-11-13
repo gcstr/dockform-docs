@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block styles %}
+  {{ super() }}
+  <style>
+    .md-header {
+      background-color: transparent;
+      box-shadow: none;
+      backdrop-filter: blur(1px);
+    }
+
+    .md-header__option, .md-sidebar {
+      display: none;
+    }
+
+    .md-tabs {
+      color: #fff;
+      box-shadow: none;
+    }
+
+    .md-main,
+    .md-content {
+      background-color: transparent;
+    }
+
+    .md-footer {
+      display: none;
+    }
+
+    .df_hero {
+      bottom: 96px;
+      position: absolute;
+      width: 100%;
+    }
+
+    .df_hero h1 {
+      color: #fff;
+      font-size: 48px;
+      letter-spacing: -.05em;
+      line-height: 0.95;
+      margin-bottom: 0;
+      max-width: 420px;
+      text-shadow: 0 0 16px #000;
+      display: inline-block;
+      width: 310px;
+      margin-left: 15px;
+    }
+
+    @media (max-width: 480px) {
+      .md-content__inner {
+        margin: 0;
+      }
+
+      .df_hero {
+        bottom: 48px;
+
+      }
+
+      .df_logo {
+        margin: 0 auto;
+        display: block;
+        margin-bottom: 20px;
+      }
+
+      .df_hero h1 {
+        text-align: center;
+        display: block;
+        width: 100%;
+        margin-left: 0px;
+      }
+
+      .df_hero p {
+        text-align: center;
+        display: block;
+        width: 80%;
+        margin: 15px auto;
+      }
+
+      .df_hero_buttons {
+        width: 100%;
+        padding: 0 15px;
+        text-align: center;
+      }
+    }
+
+    .df_hero p {
+      color: #fff;
+      font-size: 18px;
+      line-height: 1.5;
+      max-width: 500px;
+      text-shadow: 0 0 8px #000;
+      width: 400px;
+      margin-bottom: 30px;
+    }
+    
+    .md-button {
+      backdrop-filter: blur(4px);
+    }
+
+    .md-button--primary {
+      background: #1935d9 !important;
+      margin-right: 10px;
+    }
+
+    .df_logo {
+      width: 100px;
+    }
+
+    #waveCanvas {
+      position: fixed;
+      bottom: 0;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -10;
+      filter: brightness(0.3) grayscale(50%);
+    }
+  </style>
+{% endblock %}
+
+{% block container %}
+{{ super() }}
+  <canvas id="waveCanvas"></canvas>
+{% endblock %}
+
+{% block content %}
+<div class="df_hero">
+  <img class="df_logo" src="assets/images/logo.svg" alt="Dockform"/>
+  <h1>IaC for Docker Compose</h1>
+  <p>A thin layer on top of Docker Compose for declarative configurations</p>
+  <div class="df_hero_buttons">
+    <a class="md-button md-button--primary" href="introduction/what_is_dockform/">Learn more</a>
+    <a class="md-button md-button--secondary" href="introduction/getting_started/">Get started</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="assets/javascripts/wave-background.js"></script>
+{% endblock %}
