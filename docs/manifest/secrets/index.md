@@ -9,6 +9,17 @@ Dockform leverages the battle-tested [SOPS](https://github.com/getsops/sops) too
 
 This allows you to keep sensitive values (API keys, credentials, tokens, etc.) version-controlled in encrypted form, while editing and using them seamlessly during your workflow.
 
+## How It Works
+
+Dockform decrypts secrets at runtime and passes them as **environment
+variables** to the Docker Compose process. However, you must **explicitly
+declare** which environment variables each service should receive in your
+`docker-compose.yml` file.
+
+**Key Point:** Secrets are decrypted and made available to Docker Compose,
+but services only receive them if you add them to the `environment:` section in your compose file.
+This follows the **principle of least privilege** - not all services should have access to all secrets.
+
 ## Requirements
 
 You need **SOPS** installed. Depending on the backend you choose, install:
@@ -150,25 +161,85 @@ Dockform passes PGP recipients to SOPS via `--pgp`. If both Age and PGP recipien
 - `dockform secrets decrypt <path>` prints plaintext to stdout (dotenv format). It respects `sops.age.key_file` and `sops.pgp.*` configuration.
 - `dockform secrets edit <path>` opens a temporary plaintext view in your editor, then re-encrypts on save.
 
-## Using secrets in your manifest
+## Complete Example
 
-Reference the encrypted dotenv file inside your manifest.  
-Secrets can be defined globally or scoped to a specific stack.
+Here's a complete end-to-end example showing how secrets flow from encrypted files into your containers.
 
-```yaml title="dockform.yaml"
-secrets:
-  sops:
-    - app/secrets.env
+### 1. Create and encrypt your secrets file
+
+**secrets.env** (encrypted with SOPS):
+```bash
+DB_PASSWORD=supersecret123
+API_KEY=sk-1234567890abcdef
 ```
 
-For stack-specific secrets:
+### 2. Reference secrets in dockform.yaml
+
+```yaml title="dockform.yaml"
+docker:
+  identifier: myapp
+
+sops:
+  age:
+    key_file: ~/.config/sops/age/keys.txt
+
+# Global secrets available to all stacks
+secrets:
+  sops:
+    - ./secrets.env
+
+stacks:
+  web:
+    root: ./web
+    files: [docker-compose.yml]
+```
+
+### 3. Declare environment variables in docker-compose.yml
+
+!!! warning "Important!"
+    You **must** explicitly declare environment variables in your compose file. Without this, secrets won't be injected into containers.
+
+```yaml title="web/docker-compose.yml"
+services:
+  api:
+    image: myapp/api:latest
+    environment:
+      # Explicitly declare which secrets this service needs
+      - DB_PASSWORD      # Gets value from decrypted secrets.env
+      - API_KEY          # Gets value from decrypted secrets.env
+
+  frontend:
+    image: myapp/frontend:latest
+    environment:
+      - API_KEY          # Only gets API_KEY, not DB_PASSWORD (least privilege)
+```
+
+### 4. Apply changes
+
+When you run `dockform apply`:
+
+1. Dockform decrypts `secrets.env` using SOPS/Age
+2. Passes decrypted values to Docker Compose as environment variables
+3. Docker Compose injects only the explicitly declared variables into each service
+4. Containers receive the secret values as environment variables
+
+### Stack-Specific Secrets
+
+For stack-specific secrets (not shared across all stacks):
 
 ```yaml title="dockform.yaml"
 stacks:
   web:
+    root: ./web
     secrets:
       sops:
-        - web/secrets.env
+        - ./web/secrets.env  # Only available to 'web' stack
+
+  worker:
+    root: ./worker
+    secrets:
+      sops:
+        - ./worker/secrets.env  # Only available to 'worker' stack
 ```
 
 ## Doctor checks
@@ -178,9 +249,64 @@ Run `dockform doctor` to validate your environment.
 - SOPS: verifies the `sops` binary is available.
 - GPG: warns if `gpg` is not installed; when present, prints version, attempts to show the agent socket via `gpgconf --list-dirs agent-socket`, and detects loopback support by checking for `--pinentry-mode`.
 
+## Common Issues and Troubleshooting
+
+### Secrets not appearing in containers
+
+**Problem:** You've configured secrets in `dockform.yaml` but they're not available inside your containers.
+
+**Solution:** Make sure you've explicitly declared the environment variables in your `docker-compose.yml`:
+
+```yaml
+services:
+  myapp:
+    image: myapp:latest
+    environment:
+      - SECRET_KEY      # Add this!
+      - DB_PASSWORD     # Add this!
+```
+
+Without these declarations, Dockform decrypts the secrets but Docker Compose doesn't know which services should receive them.
+
+### Encrypted values showing in containers
+
+**Problem:** You see encrypted values like `SECRET_KEY=ENC[AES256_GCM,data:...]` inside your container.
+
+**Cause:** You added the encrypted file to `env_file:` in your compose file, causing Docker to read the encrypted file directly.
+
+!!! danger "Don't Use env_file with Encrypted Files"
+    ```yaml
+    # ❌ WRONG - Don't do this
+    services:
+      app:
+        env_file:
+          - secrets.env  # This reads the encrypted file directly!
+    ```
+
+    ```yaml
+    # ✅ CORRECT - Use environment declarations
+    services:
+      app:
+        environment:
+          - SECRET_KEY   # Dockform provides the decrypted value
+    ```
+
+**Solution:** Remove the `env_file:` reference and use `environment:` declarations instead. Dockform handles decryption and passes values to Docker Compose automatically.
+
+### Why explicit declarations?
+
+This design follows the **principle of least privilege**:
+
+- **Security:** Not all services should have access to all secrets
+- **Clarity:** The compose file documents what each service actually needs
+- **Portability:** Your compose file remains functional with standard Docker Compose (using `.env` files for local development)
+- **Debugging:** Clear visibility into which services use which secrets
+
 ## Using secrets without SOPS (CI-managed)
 
-If you prefer not to use SOPS, you can manage sensitive values via your CI/CD system’s secret store (e.g., GitHub Actions). Provide secrets as environment variables at runtime and reference them from Compose or the manifest.
+If you prefer not to use SOPS, you can manage sensitive values via your CI/CD
+system’s secret store (e.g., GitHub Actions). Provide secrets as environment
+variables at runtime and reference them from Compose or the manifest.
 
 - Set CI environment variables from your secret store.
 - Add them to Dockform `environment.inline` to ensure Compose receives them during planning and apply.
