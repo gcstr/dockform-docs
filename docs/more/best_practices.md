@@ -5,103 +5,246 @@ icon: lucide/award
 
 # Best Practices
 
-This guide collects practical recommendations for using Dockform safely and effectively across development, staging, and production.
+This guide collects practical recommendations for using Dockform v0.8 safely and effectively across development, staging, and production environments.
 
-## Core principles
+## Core Principles
 
-- Treat the manifest file as *the* source of truth; avoid imperative Docker commands.
-- Scope everything with a clear `docker.identifier` (e.g., `server-name`).
-- Prefer small, focused changes and review with `dockform plan` before `apply`.
+- Treat the manifest file as *the* source of truth; avoid imperative Docker commands
+- Use a clear, stable `identifier` (e.g., `myapp`, `server-name`)
+- Leverage automatic discovery—structure directories, minimize manifest config
+- Prefer small, focused changes and review with `dockform plan` before `apply`
+
+## Project Structure
+
+Follow the discovery convention for automatic stack detection:
+
+```
+my-project/
+├── dockform.yml
+├── default/              # Context name
+│   ├── traefik/          # Stack: default/traefik
+│   │   ├── compose.yaml
+│   │   └── volumes/
+│   │       └── config/
+│   ├── web/              # Stack: default/web
+│   │   ├── compose.yaml
+│   │   ├── environment.env
+│   │   └── secrets.env
+│   └── db/
+│       └── compose.yaml
+└── production/           # Another context
+    └── web/
+        └── compose.yaml
+```
+
+**Recommendations:**
+
+- Name context directories to match Docker context names
+- Keep one Compose file per stack (use profiles for variants)
+- Store filesets in `volumes/` subdirectories within each stack
+- Use `environment.env` and `secrets.env` for auto-discovery
+
+## Contexts and Multi-Host
+
+- Define one context per Docker daemon (local, staging, production)
+- Use Docker contexts for remote daemons via SSH
+- Keep context-specific resources (volumes, networks) under that context
+
+```yaml
+contexts:
+  local:
+    volumes:
+      dev-data: {}
+  staging:
+    volumes:
+      staging-data: {}
+  production:
+    volumes:
+      prod-data: {}
+    networks:
+      traefik: {}
+```
+
+??? tip "Creating remote contexts"
+    ```bash
+    docker context create production \
+      --docker host=ssh://user@server \
+      --description="Production server"
+    ```
 
 ## Volumes
 
-- Declare named volumes in the manifest under `volumes:` and reference them as `external` in Compose. ***Avoid defining named volumes directly in Compose***.
-- Back up volumes regularly. Dockform’s `destroy` (and `prune`) can remove labeled volumes. Consider a backup solution like [docker-volume-backup](https://offen.github.io/docker-volume-backup/).
-- If a fileset targets a volume, you may omit it from `volumes:` (it will be created), but listing it explicitly improves readability.
+- Declare named volumes under `contexts.<name>.volumes:`
+- Reference them as `external: true` in Compose files
+- **Avoid** defining named volumes directly in Compose—let Dockform manage them
+- Regularly backup volumes; `destroy` and `prune` will remove labeled volumes
+
+```yaml
+contexts:
+  default:
+    volumes:
+      app-data: {}
+      cache: {}
+```
+
+```yaml title="compose.yaml"
+volumes:
+  app-data:
+    external: true
+```
 
 ## Networks
 
-- Declare networks in the manifest and reference them as `external` in Compose. Avoid creating ad-hoc networks via Compose.
-- Use environment-specific names if you need strict isolation per environment.
+- Declare networks under `contexts.<name>.networks:`
+- Reference them as `external: true` in Compose files
+- Use environment-specific network names for strict isolation
+- Dockform detects drift and recreates networks when configuration changes
+
+```yaml
+contexts:
+  default:
+    networks:
+      frontend:
+        driver: bridge
+      backend:
+        internal: true
+```
 
 ## Filesets
 
-- Use filesets for configs and static assets (not for very large, frequently-changing data).
-- Keep `target_path` specific (never `/`), and use `exclude` to avoid syncing build artifacts, VCS metadata, and OS files.
-- Set `restart_services` only for services that actually need a restart.
+- Use the `volumes/` directory convention for auto-discovery
+- Keep filesets focused—configs, static assets, seeds (not large data)
+- Use `.dockform-exclude` files to skip build artifacts, VCS metadata, OS files
+- Set ownership via `.dockform-ownership.yaml` when needed
 
-Example excludes:
-
-```yaml title="dockform.yaml"
-filesets:
-  app-config:
-    source: ./config
-    target_volume: app-config
-    target_path: /etc/app
-    exclude:
-      - ".git/"
-      - "**/*.tmp"
-      - "**/.DS_Store"
+```
+default/web/volumes/
+├── config/
+│   ├── .dockform-exclude
+│   └── nginx.conf
+└── static/
+    ├── index.html
+    └── styles.css
 ```
 
-## Stacks and Compose
+Example exclude file:
 
-- Set a stable `project.name` for predictable container and network names. See https://docs.docker.com/compose/how-tos/project-name/
-- Keep Compose files close to each app’s `root` folder; avoid cross-tree paths.
-- Use Compose profiles for environment-specific toggles (e.g., `prod` vs `dev`).
-- Let Dockform inject its identifier label; do not hardcode `io.dockform.identifier` in Compose.
-
-## Environment and secrets
-
-- Use root `environment.files` for shared files and app-level `environment.files` for overrides; Dockform rebases root paths to the app `root`.
-- Prefer SOPS-encrypted `.env` files for secrets. Keep keys outside of the repo and load via `${AGE_KEY_FILE}`.
-- If not using SOPS, inject secrets via CI as environment variables and pass them through Compose `environment:`.
-- Prefer storing secrets with SOPS and commit encrypted files.
-- Use `dockform doctor` to quickly audit your environment:
-  - Verifies SOPS is installed.
-  - Checks GnuPG presence and reports loopback support and agent socket when available.
-- For GPG CI/headless runners, consider SOPS GPG loopback (`pinentry_mode: loopback`) with a short‑lived passphrase from your CI secret store.
-
-## CI/CD recommendations
-
-- Use `dockform plan` in PRs to preview changes; require approval before `apply`.
-- Pin the Docker context and set a clear `docker.identifier` per environment.
-- Provide required env vars (including SOPS keys if used) via CI secrets.
-
-## Safety and destructive operations
-
-Always ensure you have recent backups for stateful volumes before destructive commands.
-
-!!! Danger
-
-    `destroy` removes all labeled resources for the active identifier (containers, networks, volumes). **Use with care**.
-
-## Performance and determinism
-
-- Limit fileset sizes and use `exclude` aggressively for large repos.
-- Keep Compose and manifest changes minimal per deployment for faster diffs.
-- Prefer stable project and resource names to minimize churn and restarts.
-
-## Suggested project structure
-
-- Dockform is unopinionated, but grouping stacks by folder is effective.
-
-```text
-repo/
-  dockform.yaml
-  traefik/
-    docker-compose.yaml
-    config/
-  app/
-    docker-compose.yaml
-    .env
-  db/
-    docker-compose.yaml
+```title=".dockform-exclude"
+.git/
+**/*.tmp
+**/.DS_Store
+node_modules/
 ```
 
-## Troubleshooting tips
+## Stacks and Discovery
 
-- If Compose fails, run `docker compose -f <file> config` to validate YAML.
-- If a service doesn’t update, check labels and config-hash drift; then run `dockform plan`.
-- If a volume/network is “missing” in Compose, ensure it is declared in the manifest and referenced as `external` with the correct name.
+- Let discovery find your stacks—minimize explicit `stacks:` entries
+- Use `stacks:` only for augmentation: profiles, extra env, secrets, project name
+- Set a stable `project.name` for predictable container naming
 
+```yaml
+stacks:
+  default/web:
+    profiles: [production]
+    project:
+      name: web-prod
+```
+
+## Environment and Secrets
+
+- Use `environment.env` in stack directories for auto-discovery
+- Add stack-specific overrides via `stacks.<key>.environment.inline`
+- Keep secrets in `secrets.env` (SOPS-encrypted) for auto-discovery
+- Never commit unencrypted secrets; always use SOPS
+
+```yaml
+sops:
+  age:
+    key_file: ${AGE_KEY_FILE}
+```
+
+- Use `dockform doctor` to verify SOPS and key configuration
+- For CI/CD, inject key files via secrets management
+
+## Deployments
+
+Use deployment groups for targeting specific environments:
+
+```yaml
+deployments:
+  dev:
+    description: Local development
+    contexts: [local]
+  
+  staging:
+    description: Staging environment
+    contexts: [staging]
+  
+  production:
+    description: Production services
+    stacks:
+      - production/web
+      - production/api
+      - production/traefik
+```
+
+```bash
+dockform apply --deployment staging
+dockform plan --deployment production
+```
+
+## CI/CD Recommendations
+
+- Use `dockform plan` in PRs to preview changes; require approval before `apply`
+- Pin the Docker context and set a clear identifier per environment
+- Provide required env vars (including SOPS keys) via CI secrets
+- Run `dockform validate` as a pre-check step
+
+```yaml title=".github/workflows/deploy.yml"
+jobs:
+  deploy:
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate manifest
+        run: dockform validate
+      - name: Plan changes
+        run: dockform plan --deployment ${{ github.event.inputs.environment }}
+      - name: Apply changes
+        run: dockform apply --deployment ${{ github.event.inputs.environment }} --skip-confirmation
+```
+
+## Safety and Destructive Operations
+
+!!! danger
+    `destroy` removes **all** labeled resources for the active identifier (containers, networks, volumes). Use with care and ensure backups exist.
+
+- Always run `dockform plan` before `apply` to review changes
+- Keep recent backups for stateful volumes before destructive commands
+- Consider using [docker-volume-backup](https://offen.github.io/docker-volume-backup/) for automated backups
+
+## Performance
+
+- Keep fileset sizes reasonable; use `.dockform-exclude` aggressively
+- Minimize changes per deployment for faster diffs
+- Use stable project and resource names to reduce churn and restarts
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Compose fails | Run `docker compose -f <file> config` to validate YAML |
+| Service doesn't update | Check labels and config-hash drift with `dockform plan` |
+| Volume/network missing in Compose | Ensure declared in manifest and referenced as `external` |
+| Stack not discovered | Verify directory structure matches `<context>/<stack>/compose.yaml` |
+| Secrets not decrypted | Run `dockform doctor` to check SOPS configuration |
+
+## Quick Reference
+
+| Command | Purpose |
+|---------|---------|
+| `dockform plan` | Preview changes before applying |
+| `dockform apply` | Apply changes to infrastructure |
+| `dockform destroy` | Remove all managed resources |
+| `dockform validate` | Validate manifest syntax |
+| `dockform doctor` | Check environment and dependencies |
+| `dockform dashboard` | Interactive TUI for monitoring |

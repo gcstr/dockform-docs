@@ -5,21 +5,228 @@ icon: lucide/scan-eye
 
 # The Manifest File
 
-A Dockform manifest is a single YAML file that defines all resources needed for a Compose project. With it, you can declare stacks, environment variables, secrets, volumes, networks, and filesets in one place, making your stack fully reproducible and declarative.
+A Dockform manifest is a single YAML file that defines all resources needed for your Docker deployments. With it, you can declare contexts, stacks, environment variables, secrets, volumes, networks, and filesets in one place, making your infrastructure fully reproducible and declarative.
 
 ## Overview
 
-``` yaml { .yaml .annotate }
-docker:
-  context: default
-  identifier: my-project
+Dockform v0.8 introduces **automatic discovery** and **multi-context support**. Your manifest can be as simple as:
 
-environment:
-  files:
-    - global.env
-  inline:
-    - GLOBAL_VAR=value
+```yaml
+identifier: my-project
 
+contexts:
+  default: {}
+```
+
+With this minimal configuration, Dockform automatically discovers stacks from your directory structure.
+
+## Full Schema Example
+
+```yaml { .yaml .annotate }
+identifier: my-project # (1)!
+
+sops:
+  age:
+    key_file: ${AGE_KEY_FILE}
+    recipients:
+      - age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+
+discovery: # (2)!
+  compose_files: [compose.yaml, docker-compose.yaml]
+  secrets_file: secrets.env
+  environment_file: environment.env
+  volumes_dir: volumes
+
+contexts: # (3)!
+  default:
+    volumes:
+      app-data: {}
+    networks:
+      app-network:
+        driver: bridge
+        options:
+          com.docker.network.bridge.enable_icc: "false"
+  
+  production:
+    volumes:
+      prod-data: {}
+    networks:
+      traefik: {}
+
+stacks: # (4)!
+  default/web:
+    profiles: [production]
+    environment:
+      inline:
+        - DEBUG=false
+    project:
+      name: web-staging
+
+deployments: # (5)!
+  staging:
+    description: Deploy all staging stacks
+    contexts: [default]
+  prod:
+    description: Deploy production only
+    stacks: [production/web, production/api]
+```
+
+1. **identifier** is required and used to label all managed resources
+2. **discovery** (optional) customizes how Dockform finds stacks and filesets
+3. **contexts** maps Docker context names to their resource configurations
+4. **stacks** (optional) augments discovered stacks with profiles, environment, secrets, or project name
+5. **deployments** (optional) defines named groups for targeting specific contexts or stacks
+
+## `identifier:`
+
+| Type   | Default |    Required    |
+| ------ | ------- |:--------------:|
+| String | `null`  | :lucide-check: |
+
+The identifier labels all resources managed by Dockform. It's used for:
+
+- Docker labels: `io.dockform.identifier=<identifier>`
+- Resource discovery and cleanup
+- Compose project scoping
+
+!!! danger "Important"
+    Changing the `identifier` of an existing deployment will **not** update already deployed resources. Use `dockform destroy` first if you need to change identifiers.
+
+## `contexts:`
+
+| Type | Default |    Required    |
+| ---- | ------- |:--------------:|
+| Map  | `null`  | :lucide-check: |
+
+The contexts map defines which Docker contexts (daemons) Dockform manages. Each key must match an existing [Docker Context](https://docs.docker.com/engine/manage-resources/contexts/).
+
+```yaml
+contexts:
+  default: {}           # Local Docker daemon
+  remote-server: {}     # Remote daemon via SSH
+  production:
+    volumes:
+      app-data: {}
+    networks:
+      traefik: {}
+```
+
+??? tip "Creating remote contexts"
+    To create a context for a remote daemon:
+
+    ```bash
+    docker context create \
+      --docker host=ssh://user@server \
+      --description="My remote server" \
+      remote-server
+    ```
+
+### Context Resources
+
+Each context can define:
+
+- `volumes:` - Docker volumes to create
+- `networks:` - Docker networks to create
+
+```yaml
+contexts:
+  default:
+    volumes:
+      db-data: {}
+      app-config: {}
+    networks:
+      frontend:
+        driver: bridge
+      backend:
+        internal: true
+```
+
+## `discovery:`
+
+| Type | Default                 |  Required  |
+| ---- | ----------------------- |:----------:|
+| Map  | (sensible defaults)     | :lucide-x: |
+
+Discovery controls how Dockform automatically finds stacks and filesets from your directory structure. Discovery is **always enabled**; this block only customizes the patterns used.
+
+```yaml
+discovery:
+  compose_files:    # Default: [compose.yaml, compose.yml, docker-compose.yaml, docker-compose.yml]
+    - stack.yml
+  secrets_file: .secrets.env      # Default: secrets.env
+  environment_file: .env          # Default: environment.env
+  volumes_dir: data               # Default: volumes
+```
+
+### How Discovery Works
+
+Dockform scans directories matching your contexts:
+
+```
+my-project/
+├── dockform.yml
+├── default/              # ← Context "default"
+│   ├── web/              # ← Stack "default/web"
+│   │   ├── compose.yaml  # ← Compose file (discovered)
+│   │   ├── environment.env  # ← Env file (discovered)
+│   │   ├── secrets.env   # ← Secrets (discovered)
+│   │   └── volumes/      # ← Filesets directory
+│   │       └── config/   # ← Fileset "config"
+│   └── api/
+│       └── compose.yaml
+└── production/           # ← Context "production"
+    └── traefik/
+        └── compose.yaml
+```
+
+## `stacks:`
+
+| Type | Default |  Required  |
+| ---- | ------- |:----------:|
+| Map  | `null`  | :lucide-x: |
+
+The stacks block **augments** discovered stacks. It does not create new stacks—it adds configuration to stacks found through discovery.
+
+Stack keys use the format `context/stack`:
+
+```yaml
+stacks:
+  default/web:
+    profiles: [production, metrics]
+    environment:
+      inline:
+        - LOG_LEVEL=debug
+    project:
+      name: web-prod
+  
+  production/api:
+    secrets:
+      sops:
+        - api-secrets.env
+```
+
+### Augmentation Fields
+
+| Field | Purpose |
+|-------|---------|
+| `profiles` | Compose profiles to activate |
+| `environment.inline` | Additional environment variables |
+| `environment.files` | Additional env files |
+| `secrets.sops` | Additional SOPS-encrypted files |
+| `project.name` | Override Compose project name |
+
+!!! note
+    Discovery sets `root`, `files`, and base `env-file`. The stacks block adds to these, it doesn't replace them.
+
+## `sops:`
+
+| Type | Default |  Required  |
+| ---- | ------- |:----------:|
+| Map  | `null`  | :lucide-x: |
+
+Configures SOPS for secret decryption. Supports Age and PGP backends.
+
+```yaml
 sops:
   age:
     key_file: ${AGE_KEY_FILE}
@@ -29,331 +236,107 @@ sops:
     keyring_dir: ~/.gnupg
     recipients:
       - 0xDEADBEEFCAFEBABE
-
-secrets:
-  sops:
-    - secrets.env
-
-stacks:
-  web:
-    root: ./web # (1)!
-    files:
-      - docker-compose.yml
-      - docker-compose.override.yml
-    profiles:
-      - production
-    environment:
-      files:
-        - variables.env
-      inline:
-        - APP_NAME=web
-        - DEBUG=false
-    secrets:
-      sops:
-        - secrets.env
-  api:
-    root: ./api
-    environment:
-      inline:
-        - SERVICE_NAME=api
-
-networks: # (3)!
-  app-network:
-    driver: bridge
-    options:
-      com.docker.network.bridge.enable_icc: "false"
-
-filesets: # (2)!
-  static-assets:
-    source: ./assets
-    target_volume: app-data
-    target_path: /var/www/html/assets
-    apply_mode: hot
-    restart_services:
-      - nginx
-    exclude:
-      - "**/.DS_Store"
-      - "*.tmp"
-      - "node_modules/**"
-      - ".git/**"
 ```
 
-1.  Here's where you tell **Dockform** where to find your Docker Compose files.
-    The `files:` key below is optional, but it's useful for when you have multiple compose files.
-2.  **Filesets** provide an easy way to push any kind of file to a Docker volume. 
-    Just map it to a local folder then **Dockform** will do the sync.
-3.  Define Docker networks declaratively. Let **Dockform** manage it for you.
+See [Secrets Workflow](secrets/) for detailed setup.
 
-## `docker:`
+## `deployments:`
 
-The `docker` block defines which daemon to use (via [Docker Context](https://docs.docker.com/engine/manage-resources/contexts/)) and an `identifier` that groups the resources managed by Dockform.
+| Type | Default |  Required  |
+| ---- | ------- |:----------:|
+| Map  | `null`  | :lucide-x: |
 
-### `context:`
+Deployments define named groups for targeting specific contexts or stacks with CLI commands.
 
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| String | `"default"` | :lucide-check: |
-
-The [Docker Context :lucide-external-link:](https://docs.docker.com/engine/manage-resources/contexts/) that this configuration applies to. It must exist locally even if it points to a remote daemon.
-
-??? tip
-    To create a context for a remote daemon run the following command:
-
-    ```bash
-    docker context create \
-    --docker host=ssh://user@server \
-    --description="My remote server" \
-    remote
-    ```
-
-### `identifier:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| String | `null`      | :lucide-check: |
-
-Dockform uses this string to label and group all managed resources.
-
-!!! danger "Important"
-    Changing the `identifier` of an existing deployment will **not** update already deployed resources.
-
-## `environment:`
-
-You can define global or stack-specific environment variables. Variables declared at the root level apply to all stacks. Variables under `stcks.<app>.environment` are scoped to that stack only.
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| Map    | `null`      | :lucide-x:     |
-
-!!! quote ""
-    In case of conflict, stack-specific variables override global variables.
-
-=== "Global"
-
-    ```yaml
-    environment:
-      files:
-        - global.env
-      inline:
-        - GLOBAL_VAR=value
-        - ENVIRONMENT=production
-    ```
-
-=== "Scoped"
-
-    ```yaml
+```yaml
+deployments:
+  staging:
+    description: Deploy all staging stacks
+    contexts: [default]
+  
+  production:
+    description: Deploy production services
     stacks:
-      web:
+      - production/web
+      - production/api
+      - production/traefik
+```
+
+Use with `--deployment` flag:
+
+```bash
+dockform apply --deployment staging
+dockform plan --deployment production
+```
+
+## Project Structure
+
+A typical Dockform v0.8 project:
+
+```
+my-project/
+├── dockform.yml          # Manifest file
+├── default/              # Context: default (local Docker)
+│   ├── web/              # Stack: default/web
+│   │   ├── compose.yaml
+│   │   ├── environment.env
+│   │   └── volumes/
+│   │       └── static/   # Fileset: synced to volume
+│   ├── api/
+│   │   └── compose.yaml
+│   └── traefik/
+│       ├── compose.yaml
+│       └── volumes/
+│           └── config/
+└── production/           # Context: production (remote)
+    └── web/
+        └── compose.yaml
+```
+
+## Minimal vs Full Example
+
+=== "Minimal"
+
+    ```yaml
+    identifier: myapp
+    
+    contexts:
+      default: {}
+    ```
+    
+    Dockform discovers all stacks from `default/*/compose.yaml`.
+
+=== "Full"
+
+    ```yaml
+    identifier: myapp
+    
+    sops:
+      age:
+        key_file: ${AGE_KEY_FILE}
+    
+    contexts:
+      default:
+        volumes:
+          app-data: {}
+        networks:
+          traefik: {}
+      production:
+        volumes:
+          prod-data: {}
+    
+    stacks:
+      default/web:
+        profiles: [debug]
         environment:
-          files:
-            - app.env
           inline:
-            - APP_NAME=web
-            - DEBUG=false
+            - DEBUG=true
+      production/web:
+        profiles: [production]
+    
+    deployments:
+      dev:
+        contexts: [default]
+      prod:
+        contexts: [production]
     ```
-
-### `files:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| Array  | `[]`        | :lucide-x:     |
-
-Array of dotenv file paths relative to the manifest file location.  
-Each line must follow the `KEY=VALUE` format.
-
-### `inline:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| Array  | `[]`        | :lucide-x:     |
-
-Array of `KEY=VALUE` entries declared directly in the manifest.
-
-
-## `secrets:`
-
-Secrets can also be global or app-specific. Root-level secrets are exposed to all stacks, while `stacks.<app>.secrets` only apply to that app.
-
-!!! quote ""
-    In case of conflict, stack-specific secrets override global ones.
-
-Secrets are managed with [SOPS](https://github.com/getsops/sops). Dockform supports both **Age** and **PGP (GnuPG)** backends. See [Secrets Workflow](secrets/) for details.
-
-=== "Global"
-
-    ```yaml
-    sops:
-      age:
-        key_file: ${AGE_KEY_FILE}
-      pgp:
-        keyring_dir: ~/.gnupg
-
-    secrets:
-      sops:
-        - secrets.env
-    ```
-
-=== "Scoped"
-
-    ```yaml
-    sops:
-      age:
-        key_file: ${AGE_KEY_FILE}
-      pgp:
-        keyring_dir: ~/.gnupg
-
-    stacks:
-      web:
-        secrets:
-          sops:
-            - secrets.env
-    ```
-
-### `key_file:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| String | `null`      | :lucide-x:     |
-
-Path to an **age** key file.
-
-### `sops:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| Array  | `[]`        | :lucide-x:     |
-
-
-Array of encrypted dotenv file paths.
-
-## `volumes:`
-
-### `<volume_name>:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| Map    | `null`      | :lucide-x:     |
-
-Name of a Docker [named volume](https://docs.docker.com/engine/storage/volumes/).
-
-## `networks:`
-
-### `<network_name>:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| Map    | `null`      | :lucide-x:     |
-
-Name of a Docker [network](https://docs.docker.com/reference/cli/docker/network/create/).
-
-## `stacks:`
-
-The `stacks` block is where all Docker Compose configurations converge.
-
-### `<stack_name>:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| Map    | `null`      | :lucide-check: |
-
-Name of the stack.
-
-### `root:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| String | `null`      | :lucide-check: |
-
-Path relative to the manifest file. Must contain at least one Docker Compose file.
-
-!!! Note
-    All file paths under an stack (Compose, dotenv, secrets) are resolved relative to this folder.
-
-### `files:`
-
-| Type  | Default                                           |  Required  |
-| ----- | ------------------------------------------------- |:----------:|
-| Array | `[docker-compose.yml]` or `[docker-compose.yaml]` | :lucide-x: |
-
-List of Docker Compose files. If omitted, Dockform will look for `docker-compose.yml` or `docker-compose.yaml` in the stack root.
-
-### `profiles:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| Array  | `[]`        | :lucide-x:     |
-
-Array of Docker Compose [service profiles](https://docs.docker.com/compose/how-tos/profiles/) to enable.
-
-### `environment:`
-See [environment](#environment).
-
-### `secrets:`
-See [secrets](#secrets).
-
-## `filesets:`
-
-Filesets pre-populate volumes with files such as configs or static assets.
-
-### `<fileset_name>:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| Map    | `null`      | :lucide-check: |
-
-Name of the fileset.
-
-### `source:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| String | `null`      | :lucide-check: |
-
-Path (relative to the manifest) containing the files to copy into the volume.
-
-### `target_volume:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| String | `null`      | :lucide-check: |
-
-The name of the volume to contain the files. A new volume will be created unless a volume with the same name is declared under [volumes](#volumes).
-
-### `target_path:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| String | `null`      | :lucide-check: |
-
-Absolute path inside the container where the files will be available. Root (`/`) is not allowed.
-
-### `restart_services:`
-
-| Type            | Default              |  Required  |
-| --------------- | -------------------- |:----------:|
-| Array or String | `null` (no restarts) | :lucide-x: |
-
-Controls which services are acted on after a fileset changes:
-- List: `[serviceA, serviceB]` → explicitly target these services
-- String: `"attached"` → auto-discover services that mount `target_volume`
-
-In hot mode, targets are restarted after sync. In cold mode, targets are stopped before sync and started after.
-
-!!! Tip
-    If no targets are resolved (omitted or none attached), Dockform proceeds without restarts.
-
-### `apply_mode:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| String | `hot`       | :lucide-x:     |
-
-Controls how file changes are applied. Can be `"hot"` (sync files while containers run, then restart targets if any) or `"cold"` (stop targets, sync files, then start targets). See [Filesets](/manifest/filesets#apply-modes) for details.
-
-### `exclude:`
-
-| Type   | Default     |    Required    |
-| ------ | ----------- |:--------------:|
-| Array  | `null`      | :lucide-x:     |
-
-List of files or folders to ignore. Paths matching any entry will not be copied to the volume.

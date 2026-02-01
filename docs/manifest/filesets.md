@@ -6,116 +6,117 @@ icon: lucide/folder-sync
 # Filesets
 
 Filesets keep a local directory in sync with a path inside a Docker volume.
-They let you manage stack config, assets, or seeds declaratively, without baking files into images.
+They let you manage configuration files, static assets, or seed data declaratively, without baking files into images.
+
+In v0.8, filesets are **discovered automatically** from `volumes/` directories inside each stack.
 
 <div class="grid cards" markdown>
 
 - :lucide-refresh-ccw-dot: **Declarative sync**  
-  define the source, target volume, and target path; Dockform syncs diffs only.
+  Define the source and target; Dockform syncs diffs only.
 
 - :lucide-arrow-up-wide-narrow: **Idempotent and incremental**  
-  only changed, added, or removed files are applied.
+  Only changed, added, or removed files are applied.
 
-- :lucide-puzzle: **Compose-friendly**  
-  attach the target volume to services via Compose as an external volume.
+- :lucide-puzzle: **Auto-discovery**  
+  Filesets are found in `<context>/<stack>/volumes/` directories.
 
 - :lucide-power: **Optional service restarts**  
-  list services to restart after files are updated.
+  Configure services to restart after files are updated.
 
 </div>
 
-## Defining a fileset
+## Automatic Discovery
 
-A fileset has four required inputs: `source`, `target_volume`, `target_path`, and optional `exclude`/`restart_services`.
+Dockform discovers filesets from `volumes/` directories inside each stack:
 
-```yaml title="dockform.yaml"
-docker:
-  context: default
-  identifier: staging
-
-filesets:
-  traefik:
-    source: traefik/config
-    target_volume: traefik_config
-    target_path: /etc/traefik
-    restart_services:
-      - traefik
-    exclude:
-      - ".git/"
-      - "**/.DS_Store"
+```
+my-project/
+├── dockform.yml
+├── default/
+│   └── web/
+│       ├── compose.yaml
+│       └── volumes/           # ← Filesets directory
+│           ├── config/        # ← Fileset "config"
+│           │   └── nginx.conf
+│           └── static/        # ← Fileset "static"
+│               ├── index.html
+│               └── styles.css
 ```
 
-### Details
+Each subdirectory of `volumes/` becomes a fileset. The directory name is used as:
 
-| Field | Description |
-|-------|-------------|
-| **source** | Local directory path, relative to the manifest file or absolute. Must exist. |
-| **target_volume** | Docker volume name. If missing, Dockform creates it during `apply`. |
-| **target_path** | Absolute path inside the volume (must start with `/` and cannot be `/`). |
-| **exclude** | Gitignore-like patterns. Directory patterns ending with `/` exclude everything under them. |
-| **restart_services** | Compose service names to restart when this fileset changes. |
-| **apply_mode** | How to apply file changes. See [Apply Modes](#apply-modes) below. |
-| **ownership** | Optional permissions block. See [Ownership & Permissions](#ownership--permissions). |
+- The **fileset name**
+- The **target volume name** (created if it doesn't exist)
 
-## Using with Compose
+### Discovery Defaults
 
-Attach the fileset’s `target_volume` to services as an external volume.
+For each discovered fileset:
 
-=== "dockform.yaml"
+| Property | Default Value |
+|----------|---------------|
+| `source` | `<stack>/volumes/<fileset>/` |
+| `target_volume` | `<fileset>` (same as directory name) |
+| `target_path` | `/<fileset>` (root path with fileset name) |
+| `apply_mode` | `hot` |
 
-    ```yaml
-    networks:
-      traefik: {}
-    filesets:
-      traefik:
-        source: traefik/config
-        target_volume: traefik_config
-        target_path: /etc/traefik
-        restart_services:
-          - traefik
+### Customizing Discovery
+
+Change the volumes directory name:
+
+```yaml
+identifier: myapp
+
+discovery:
+  volumes_dir: data  # Look for <stack>/data/ instead of <stack>/volumes/
+
+contexts:
+  default: {}
+```
+
+## Using Filesets with Compose
+
+Reference fileset volumes as `external` in your compose files:
+
+=== "Directory Structure"
+
+    ```
+    default/traefik/
+    ├── compose.yaml
+    └── volumes/
+        └── config/
+            ├── traefik.yaml
+            └── dynamic/
+                └── routers.yaml
     ```
 
-=== "app/docker-compose.yaml"
+=== "compose.yaml"
 
     ```yaml
     services:
       traefik:
         image: traefik:v3
-        networks:
-          - traefik
         volumes:
-          - traefik_config:/etc/traefik
+          - config:/etc/traefik
 
     volumes:
-      traefik_config:
+      config:
         external: true
     ```
 
-## How sync works
+The `config` volume is automatically created and synced with the contents of `volumes/config/`.
 
-Dockform builds a content index from the local source and compares it with a remote index inside the volume at the `target_path`.
+## How Sync Works
 
-- The index is stored at `.dockform-index.json` inside the target path.
-- On differences, Dockform:
-    - packs created/updated files in a tar and extracts them into the volume, creating parent directories as needed;
-    - deletes files that are present remotely but absent locally;
-    - writes the new index file.
-- If nothing changed (same tree hash), the fileset is skipped.
+Dockform builds a content index from the local source and compares it with a remote index inside the volume:
 
-## Lifecycle and operations
-
-- **plan**: shows file operations per fileset when the Docker client is available; otherwise, shows a generic "planned" note.
-- **apply**:
-    - Ensures the target volume exists (created via Volumes logic if missing).
-    - Computes diffs and syncs changes into the volume.
-    - Writes/updates `.dockform-index.json`.
-    - Queues `restart_services` for restart after compose changes are applied.
-- **destroy**: removes fileset-associated volumes first, then standalone volumes and networks.
-
-!!! Note
-    - Filesets operate on volumes, not bind mounts.
-    - Multiple filesets can target different volumes and paths.
-    - Large trees are processed deterministically; paths are sorted for stable archives and hashes.
+1. **Index storage**: `.dockform-index.json` inside the target path
+2. **On differences**:
+   - Packs created/updated files in a tar archive
+   - Extracts them into the volume
+   - Deletes files present remotely but absent locally
+   - Writes the new index file
+3. **No changes**: If tree hashes match, the fileset is skipped
 
 ## Apply Modes
 
@@ -123,201 +124,168 @@ Filesets support two apply modes that control how files are synchronized with ru
 
 ### Hot Mode (Default)
 
-With `apply_mode: hot` (or when `apply_mode` is not specified), Dockform syncs files while containers are running, then restarts the services listed in `restart_services`.
+With `apply_mode: hot`, Dockform syncs files while containers are running, then restarts configured services.
 
-```yaml title="dockform.yaml"
-filesets:
-  nginx_config:
-    source: nginx/conf
-    target_volume: nginx_config
-    target_path: /etc/nginx
-    apply_mode: hot  # Default behavior
-    restart_services:
-      - nginx
+```
+volumes/
+└── nginx-config/
+    └── nginx.conf
 ```
 
-**Hot mode workflow:**  
+**Hot mode workflow:**
 
 1. Sync files to volume (containers keep running)
 2. Apply stack changes via `docker compose up`
-3. Restart services listed in `restart_services`
-
-This is the fastest mode and works well for most stacks that can reload configuration without stopping.
+3. Restart services if configured
 
 ### Cold Mode
 
-With `apply_mode: cold`, Dockform stops the services selected as targets, syncs files, then starts those services again.
-
-```yaml title="dockform.yaml"
-filesets:
-  database_config:
-    source: postgres/conf
-    target_volume: postgres_config
-    target_path: /etc/postgresql
-    apply_mode: cold
-    restart_services:
-      - postgres
-      - pgbouncer
-```
-
-**Cold mode workflow:**
-
-1. Stop target services
-2. Sync files to volume
-3. Start the previously stopped services
+With `apply_mode: cold`, Dockform stops services first, syncs files, then starts them again.
 
 Use cold mode when:
 
-- The stack requires files to be updated only when stopped
-- File changes could corrupt running processes
-- You need atomic file updates across multiple files
-- Database configurations or other critical system files need updating
+- Files must not change while services are running
+- Atomic updates across multiple files are required
+- Database or critical system configurations are being updated
 
-!!! Tip
-    Cold mode does nothing if no targets are set (allowed). It only changes the sync contract (no in-place updates while services are running).
-
-
-### Choosing the Right Mode
-
-| Scenario | Recommended Mode | Reason |
-|----------|------------------|---------|
-| Web server configs | `hot` | Can reload config via restart |
-| Static assets | `hot` | No restart needed, just file sync |
-| Database configs | `cold` | Requires clean shutdown/startup |
-| SSL certificates | `hot` | Most apps can reload certs |
-| Stack binaries | `cold` | Files must not change while running |
-
-## Restart targets
-
-The `restart_services` field controls which services Dockform acts on after a fileset sync (for hot) or before/after sync (for cold).
-
-#### Accepted values
-
-- A list of service names: `[serviceA, serviceB]`
-- The sentinel string: `attached`
-- Omitted: no restarts (targets = ∅)
-
-#### Resolution rules
-
-- If omitted → targets = ∅ (no-op)
-- If list → targets = that list (deduped, order preserved)
-- If `attached` → Dockform discovers all services that mount `target_volume` (any path, ro/rw) and uses that set (deduped). If none found, continue without restarts.
-
-#### Apply flow
-
-- Hot (default): sync files while services are running; if targets ≠ ∅ then restart targets.
-- Cold: if targets = ∅, do not stop/start anything (still valid); else, stop all targets → sync files → start all targets.
+!!! note
+    Apply mode is configured via metadata files or future manifest extensions. Default is always `hot`.
 
 ## Ownership & Permissions
 
-Filesets can enforce ownership and permission bits on the files they sync. Add an `ownership` block to opt in:
+Filesets can enforce ownership and permission bits on synced files. Create a `.dockform-ownership.yaml` file in your fileset directory:
 
-```yaml title="dockform.yaml"
-filesets:
-  config:
-    source: ./config
-    target_volume: app_config
-    target_path: /etc/app
-    ownership:
-      user: "1000"
-      group: "1000"
-      file_mode: "0644"
-      dir_mode: "0755"
-      preserve_existing: false
+```yaml title="volumes/config/.dockform-ownership.yaml"
+user: "1000"
+group: "1000"
+file_mode: "0644"
+dir_mode: "0755"
+preserve_existing: false
 ```
 
-Supported fields:
+| Field | Description |
+|-------|-------------|
+| `user` | Numeric UID or POSIX username |
+| `group` | Numeric GID or POSIX group name |
+| `file_mode` | Octal permission for files (e.g., `"0644"`) |
+| `dir_mode` | Octal permission for directories (e.g., `"0755"`) |
+| `preserve_existing` | When `true`, only new/updated files get modified |
 
-- `user`: numeric UID (recommended) or POSIX username to apply via `chown`.
-- `group`: numeric GID or POSIX group name to apply via `chgrp`.
-- `file_mode`: octal string (e.g. `"0644"` or `"600"`) applied to regular files.
-- `dir_mode`: octal string for directories (e.g. `"0755"`); skipped when unset.
-- `preserve_existing`: when `true`, only newly created or updated paths (and their parent directories) get modified; when omitted or `false`, Dockform walks the entire target subtree.
+!!! tip
+    Use numeric IDs for portability. Named users/groups must exist inside the helper container (`alpine:3.22`).
 
-Ownership runs after files finish syncing, using Dockform’s helper container (`alpine:3.22`) that mounts the target volume at `target_path`. If you supply names instead of numeric IDs, they must resolve inside that container via `getent`; otherwise Dockform logs a warning and skips the `chown` step. Numeric IDs avoid that portability issue.
+## Excluding Files
 
-When `preserve_existing` is enabled, existing files keep their prior owner and mode unless they change contents. New content still receives the configured settings, so you can stage migrations incrementally. With it disabled (default) Dockform reapplies ownership and modes across the full tree on each apply to ensure drift is corrected.
+Create a `.dockform-exclude` file with gitignore-style patterns:
 
-## Example: static site assets
+```title="volumes/static/.dockform-exclude"
+.git/
+**/.DS_Store
+*.tmp
+node_modules/
+```
 
-=== "dockform.yaml"
+## Lifecycle and Operations
 
-    ```yaml
-    stacks:
-      web:
-        root: ./web
-        project:
-          name: web-staging
+| Step | Operation |
+| -- | -- |
+| **plan** | Shows file operations per fileset when Docker is available |
+| **apply** | Ensures volume exists, computes diffs, syncs changes, writes index, queues restarts |
+| **destroy** | Removes fileset-associated volumes along with other labeled resources |
 
-    filesets:
-      site:
-        source: ./assets
-        target_volume: web-assets
-        target_path: /usr/share/nginx/html
-        restart_services:
-          - web
-        exclude:
-          - ".git/"
-          - "**/*.map"
+## Multi-Context Filesets
 
+Filesets are discovered per context, allowing different configurations for different environments:
+
+```
+my-project/
+├── dockform.yml
+├── default/
+│   └── nginx/
+│       └── volumes/
+│           └── config/
+│               └── nginx.dev.conf
+└── production/
+    └── nginx/
+        └── volumes/
+            └── config/
+                └── nginx.prod.conf
+```
+
+## Examples
+
+### Basic: Static Site Assets
+
+```
+default/web/
+├── compose.yaml
+└── volumes/
+    └── html/
+        ├── index.html
+        ├── styles.css
+        └── app.js
+```
+
+```yaml title="default/web/compose.yaml"
+services:
+  nginx:
+    image: nginx:alpine
     volumes:
-      web-assets: {}
-    ```
+      - html:/usr/share/nginx/html
 
-=== "web/docker-compose.yaml"
+volumes:
+  html:
+    external: true
+```
 
-    ```yaml
-    services:
-      web:
-        image: nginx:alpine
-        volumes:
-          - web-assets:/usr/share/nginx/html
+### Traefik Configuration
 
+```
+default/traefik/
+├── compose.yaml
+└── volumes/
+    └── config/
+        ├── traefik.yaml
+        └── dynamic/
+            ├── routers.yaml
+            └── middlewares.yaml
+```
+
+```yaml title="default/traefik/compose.yaml"
+services:
+  traefik:
+    image: traefik:v3
+    command:
+      - --configFile=/etc/traefik/traefik.yaml
     volumes:
-      web-assets:
-        external: true
-    ```
+      - config:/etc/traefik
 
-- Run `dockform plan` to preview volume creation and fileset changes.
-- Run `dockform apply` to sync files, start/update services, and restart any listed services.
+volumes:
+  config:
+    external: true
+```
 
-## Example: stack requiring cold updates
+### Database Seeds
 
-Some stacks require that configuration files are only updated when the container is stopped. For example, certain media management tools or databases that lock configuration files:
+```
+default/db/
+├── compose.yaml
+└── volumes/
+    └── init/
+        ├── 01-schema.sql
+        └── 02-seed.sql
+```
 
-=== "dockform.yaml"
-
-    ```yaml
-    stacks:
-      media:
-        root: ./media
-
-    filesets:
-      jackett:
-        source: jackett/config
-        target_volume: jackett_data
-        target_path: /config
-        apply_mode: cold
-        restart_services:
-          - jackett
-    ```
-
-=== "web/docker-compose.yaml"
-
-    ```yaml
-    services:
-      jackett:
-        image: linuxserver/jackett
-        volumes:
-          - jackett_data:/config
-
+```yaml title="default/db/compose.yaml"
+services:
+  postgres:
+    image: postgres:16
     volumes:
-      jackett_data:
-        external: true
-    ```
+      - init:/docker-entrypoint-initdb.d
 
-When you run `dockform apply`:
+volumes:
+  init:
+    external: true
+```
 
-1. Dockform stops the `jackett` service (target)
-2. Syncs configuration files from `jackett/config/` to the volume
-3. Starts the `jackett` service
+Run `dockform plan` to preview fileset changes, then `dockform apply` to sync files and start services.

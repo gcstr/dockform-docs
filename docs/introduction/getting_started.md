@@ -5,7 +5,7 @@ icon: lucide/tv-minimal-play
 
 # Getting Started
 
-This guide will help you set up Dockform, initialize your first project, and understand the basic structure of a Dockform-managed stack.
+This guide will help you set up Dockform, initialize your first project, and understand the project structure that enables automatic discovery.
 
 ## Installation
 
@@ -13,24 +13,28 @@ This guide will help you set up Dockform, initialize your first project, and und
 
 Before you begin, make sure you have the following installed:
 
-- [Docker](https://www.docker.com/) 
-- [Docker Compose](https://docs.docker.com/compose/)  
-- [Go](https://go.dev/) (if you want to build Dockform from source)  
-- [SOPS](https://github.com/getsops/sops) and [Age](https://github.com/FiloSottile/age) (required for secrets management)  
+- [Docker](https://www.docker.com/) with Docker Compose
+- [SOPS](https://github.com/getsops/sops) and [Age](https://github.com/FiloSottile/age) (for secrets management)
+- [Go](https://go.dev/) (optional, for building from source)
 
 ### Homebrew
 
-On macOS or Linux, you can install Dockform using [Homebrew](https://brew.sh/):
+On macOS or Linux, install Dockform using [Homebrew](https://brew.sh/):
 
-``` bash title="terminal"
+```bash
 brew tap gcstr/dockform
 brew install dockform
 ```
 
-### Precompiled binaries
+### Go Install
 
-Precompiled binaries for Linux, macOS, and Windows are available on the [GitHub Releases](https://github.com/gcstr/dockform/releases) page.  
-Download the binary for your platform, extract it, and place it somewhere in your `PATH`.
+```bash
+go install github.com/gcstr/dockform@latest
+```
+
+### Precompiled Binaries
+
+Download binaries for Linux, macOS, and Windows from [GitHub Releases](https://github.com/gcstr/dockform/releases).
 
 ---
 
@@ -38,34 +42,216 @@ Download the binary for your platform, extract it, and place it somewhere in you
 
 Dockform includes a convenience command to scaffold a new project:
 
-``` bash
+```bash
 dockform init
 ```
 
-This will create a starter `dockform.yml` manifest file in your project directory.
+This creates a starter `dockform.yml` manifest file.
 
 ## Project Structure
 
-A typical Dockform project might look like this:
+Dockform v0.8 uses **automatic discovery** based on your directory structure. Organize your project like this:
 
 ```
 my-project/
-├── dockform.yml
-├── app1/
-│   ├── docker-compose.yml
-│   └── secrets.env
-├── app2/
-│   ├── config/
-│   │   └── config.toml
-│   └── docker-compose.yml
-└── app3/
-    └── docker-compose.yml
+├── dockform.yml          # Manifest file
+├── default/              # Context directory (matches Docker context name)
+│   ├── web/              # Stack: default/web
+│   │   ├── compose.yaml
+│   │   ├── environment.env
+│   │   └── volumes/
+│   │       └── static/
+│   │           └── index.html
+│   ├── api/              # Stack: default/api
+│   │   └── compose.yaml
+│   └── db/               # Stack: default/db
+│       └── compose.yaml
 ```
 
-Each stack (`app1`, `app2`, `app3`) has its own folder containing one or more Compose files and optional configuration. The `dockform.yml` manifest ties everything together.
+### Key Conventions
 
----
+| Directory/File | Purpose |
+|----------------|---------|
+| `<context>/` | Directory matching your Docker context name |
+| `<context>/<stack>/` | Each subdirectory is a stack |
+| `compose.yaml` | Compose file (auto-discovered) |
+| `environment.env` | Environment variables (auto-discovered) |
+| `secrets.env` | SOPS-encrypted secrets (auto-discovered) |
+| `volumes/` | Filesets directory (auto-discovered) |
+
+### Minimal Manifest
+
+With the directory structure above, your manifest can be as simple as:
+
+```yaml title="dockform.yml"
+identifier: my-project
+
+contexts:
+  default: {}
+```
+
+Dockform automatically discovers all stacks in `default/`.
+
+## Quick Start Example
+
+### 1. Create Project Structure
+
+```bash
+mkdir -p my-project/default/web
+cd my-project
+```
+
+### 2. Create Compose File
+
+```yaml title="default/web/compose.yaml"
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+```
+
+### 3. Create Manifest
+
+```yaml title="dockform.yml"
+identifier: quickstart
+
+contexts:
+  default: {}
+```
+
+### 4. Preview Changes
+
+```bash
+dockform plan
+```
+
+Output:
+```
+│ Context: default
+│ Identifier: quickstart
+
+Stacks
+  default/web
+    + nginx will be created
+
+Plan: 1 to create, 0 to change, and 0 to destroy
+```
+
+### 5. Apply
+
+```bash
+dockform apply
+```
+
+Your nginx container is now running at http://localhost:8080
+
+## Adding Resources
+
+### Volumes
+
+Add volumes under your context:
+
+```yaml title="dockform.yml"
+identifier: my-project
+
+contexts:
+  default:
+    volumes:
+      app-data: {}
+```
+
+Reference in Compose as `external`:
+
+```yaml title="default/web/compose.yaml"
+services:
+  app:
+    image: myapp
+    volumes:
+      - app-data:/data
+
+volumes:
+  app-data:
+    external: true
+```
+
+### Networks
+
+Add networks under your context:
+
+```yaml title="dockform.yml"
+identifier: my-project
+
+contexts:
+  default:
+    networks:
+      frontend:
+        driver: bridge
+```
+
+Reference in Compose as `external`:
+
+```yaml title="default/web/compose.yaml"
+services:
+  app:
+    image: myapp
+    networks:
+      - frontend
+
+networks:
+  frontend:
+    external: true
+```
+
+### Filesets
+
+Create a `volumes/` directory in your stack:
+
+```
+default/web/
+├── compose.yaml
+└── volumes/
+    └── config/
+        └── nginx.conf
+```
+
+The `config` fileset is auto-discovered and synced to a `config` volume.
+
+### Stack Augmentation
+
+Add profiles or extra environment to discovered stacks:
+
+```yaml title="dockform.yml"
+identifier: my-project
+
+contexts:
+  default: {}
+
+stacks:
+  default/web:
+    profiles: [production]
+    environment:
+      inline:
+        - DEBUG=false
+```
+
+## Commands Cheatsheet
+
+| Command | Description |
+|---------|-------------|
+| `dockform plan` | Preview changes |
+| `dockform apply` | Apply changes |
+| `dockform destroy` | Remove all managed resources |
+| `dockform validate` | Validate manifest |
+| `dockform doctor` | Check environment |
+| `dockform dashboard` | Interactive TUI |
 
 ## Next Steps
 
-To learn more about the manifest file and its configuration options, see [The Manifest File](../manifest/overview/).
+- [The Manifest File](../manifest/overview/) – Full schema reference
+- [Stacks](../manifest/stacks/) – Stack discovery and augmentation
+- [Secrets](../manifest/secrets/) – SOPS encryption setup
+- [Best Practices](../more/best_practices/) – Production recommendations
+
+!!! tip "Migrating from v0.7?"
+    See the [Migration Guide](migration_v08.md) for step-by-step instructions.
