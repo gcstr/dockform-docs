@@ -33,7 +33,7 @@ contexts:
 ```
 
 !!! info "Naming rules"
-    Volume names must match `^[a-z0-9_.-]+$`
+    Volume names follow Docker's native naming rules.
 
 ## Using Volumes from Compose
 

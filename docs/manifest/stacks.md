@@ -108,6 +108,7 @@ stacks:
 | `environment.files` | Additional env files | `[extra.env]` |
 | `secrets.sops` | Additional SOPS files | `[api-secrets.env]` |
 | `project.name` | Override project name | `web-prod` |
+| `filesets` | Fileset overrides/declarations | See [Filesets](filesets.md) |
 
 !!! note "Discovery wins for core fields"
     The `stacks:` block adds to discovered stacks—it doesn't replace the discovered `root`, `files`, or base environment. Discovery determines *where* the stack is; augmentation adds *how* to run it.

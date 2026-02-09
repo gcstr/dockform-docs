@@ -16,11 +16,12 @@ $ export AGE_KEY_FILE=~/.config/sops/age/keys.txt
 
 === "dockform.yaml"
 
-    ```yaml hl_lines="7"
-    docker:
-      context: default
-      identifier: my_project
-    
+    ```yaml hl_lines="8"
+    identifier: my_project
+
+    contexts:
+      default: {}
+
     sops:
       age:
         key_file: ${AGE_KEY_FILE}
@@ -28,11 +29,12 @@ $ export AGE_KEY_FILE=~/.config/sops/age/keys.txt
 
 === "dockform.yaml (rendered)"
 
-    ```yaml hl_lines="7"
-    docker:
-      context: default
-      identifier: my_project
-    
+    ```yaml hl_lines="8"
+    identifier: my_project
+
+    contexts:
+      default: {}
+
     sops:
       age:
         key_file: ~/.config/sops/age/keys.txt
@@ -47,10 +49,9 @@ E.g.:
 
 === "dockform.yaml"
 
-    ```yaml 
+    ```yaml
     stacks:
-      website:
-        root: website
+      default/website:
         environment:
           inline:
             - API_KEY=${GITHUB_TOKEN}

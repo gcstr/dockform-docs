@@ -1,6 +1,6 @@
 [project]
 site_name = "Dockform"
-site_description = "A thin layer on top of Docker Compose for declarative configurations."
+site_description = "Declarative infrastructure for Docker Compose across one or more servers."
 site_author = "gcstr"
 site_url = "https://dockform.io"
 repo_url = "https://github.com/gcstr/dockform"
@@ -10,12 +10,14 @@ nav = [
     { "Introduction" = [
       { "What is Dockform?" = "introduction/what_is_dockform.md" },
       { "Getting Started" = "introduction/getting_started.md" },
+      { "Migrating to v0.8" = "introduction/migration_v08.md" },
       { "Why not X?" = "introduction/why_not_x.md" },
     ]},
   ]},
   { "The Manifest File" = [
     { "Manifest" = [
       { "Overview" = "manifest/overview.md" },
+      { "Stacks" = "manifest/stacks.md" },
       { "Interpolation" = "manifest/interpolation.md" },
       { "Volumes" = "manifest/volumes.md" },
       { "Filesets" = "manifest/filesets.md" },
@@ -28,6 +30,7 @@ nav = [
     ]},
     { "More" = [
       { "Best Practices" = "more/best_practices.md" },
+      { "Snapshots & Restore" = "more/snapshots_and_restore.md" },
       { "Dashboard" = "more/dashboard.md" },
       { "Debugging" = "more/debugging.md" },
     ]},

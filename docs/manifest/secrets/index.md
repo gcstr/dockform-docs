@@ -176,22 +176,19 @@ API_KEY=sk-1234567890abcdef
 ### 2. Reference secrets in dockform.yaml
 
 ```yaml title="dockform.yaml"
-docker:
-  identifier: myapp
+identifier: myapp
 
 sops:
   age:
     key_file: ~/.config/sops/age/keys.txt
 
+contexts:
+  default: {}
+
 # Global secrets available to all stacks
 secrets:
   sops:
     - ./secrets.env
-
-stacks:
-  web:
-    root: ./web
-    files: [docker-compose.yml]
 ```
 
 ### 3. Declare environment variables in docker-compose.yml
@@ -199,7 +196,7 @@ stacks:
 !!! warning "Important!"
     You **must** explicitly declare environment variables in your compose file. Without this, secrets won't be injected into containers.
 
-```yaml title="web/docker-compose.yml"
+```yaml title="default/web/compose.yaml"
 services:
   api:
     image: myapp/api:latest
@@ -229,17 +226,15 @@ For stack-specific secrets (not shared across all stacks):
 
 ```yaml title="dockform.yaml"
 stacks:
-  web:
-    root: ./web
+  default/web:
     secrets:
       sops:
-        - ./web/secrets.env  # Only available to 'web' stack
+        - ./default/web/secrets.env  # Only available to 'web' stack
 
-  worker:
-    root: ./worker
+  default/worker:
     secrets:
       sops:
-        - ./worker/secrets.env  # Only available to 'worker' stack
+        - ./default/worker/secrets.env  # Only available to 'worker' stack
 ```
 
 ## Doctor checks
@@ -314,23 +309,21 @@ variables at runtime and reference them from Compose or the manifest.
 === "dockform.yaml"
 
     ```yaml
-    docker:
-      context: default
-      identifier: production
+    identifier: production
 
-    environment:
-      inline:
-        # These values are interpolated from CI-provided env vars at load time
-        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-        - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+    contexts:
+      default: {}
 
     stacks:
-      app:
-        root: ./app
-        files: [docker-compose.yaml]
+      default/app:
+        environment:
+          inline:
+            # These values are interpolated from CI-provided env vars at load time
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
     ```
 
-=== "app/docker-compose.yaml"
+=== "default/app/compose.yaml"
 
     ```yaml
     services:

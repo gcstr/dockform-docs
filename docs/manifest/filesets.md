@@ -8,20 +8,20 @@ icon: lucide/folder-sync
 Filesets keep a local directory in sync with a path inside a Docker volume.
 They let you manage configuration files, static assets, or seed data declaratively, without baking files into images.
 
-In v0.8, filesets are **discovered automatically** from `volumes/` directories inside each stack.
+Filesets follow the same pattern as stacks: **discover by convention, augment with explicit config**.
 
 <div class="grid cards" markdown>
 
-- :lucide-refresh-ccw-dot: **Declarative sync**  
+- :lucide-refresh-ccw-dot: **Declarative sync**
   Define the source and target; Dockform syncs diffs only.
 
-- :lucide-arrow-up-wide-narrow: **Idempotent and incremental**  
+- :lucide-arrow-up-wide-narrow: **Idempotent and incremental**
   Only changed, added, or removed files are applied.
 
-- :lucide-puzzle: **Auto-discovery**  
+- :lucide-puzzle: **Auto-discovery**
   Filesets are found in `<context>/<stack>/volumes/` directories.
 
-- :lucide-power: **Optional service restarts**  
+- :lucide-power: **Optional service restarts**
   Configure services to restart after files are updated.
 
 </div>
@@ -73,6 +73,71 @@ discovery:
 contexts:
   default: {}
 ```
+
+## Configuring Filesets in the Manifest
+
+Use the `filesets:` block inside a stack definition to override discovered defaults or declare filesets explicitly. This follows the same discover-then-augment pattern used for stacks.
+
+### Overriding Discovered Filesets
+
+When a fileset is discovered from `volumes/`, you can override any of its defaults:
+
+```yaml
+identifier: myapp
+
+contexts:
+  default: {}
+
+stacks:
+  default/web:
+    filesets:
+      config:                                 # ← Must match the directory name
+        target_volume: my-custom-volume       # ← Override default volume name
+        target_path: /etc/nginx               # ← Override default target path
+        ownership:
+          user: "1000"
+          group: "1000"
+          file_mode: "0644"
+          dir_mode: "0755"
+        exclude:
+          - "*.tmp"
+          - .DS_Store
+```
+
+Explicit values override discovered defaults. Fields you don't specify keep their discovered values.
+
+### Declaring Filesets Explicitly
+
+You can also define filesets entirely in the manifest without a `volumes/` directory. This is useful when the source files live outside the stack directory or when you need full control over the configuration:
+
+```yaml
+identifier: myapp
+
+contexts:
+  default: {}
+
+stacks:
+  default/web:
+    filesets:
+      config:
+        source: ./shared/nginx-config    # ← Source outside the stack directory
+        target_volume: nginx_config
+        target_path: /etc/nginx
+        exclude:
+          - "*.bak"
+```
+
+### Fileset Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source` | string | Local directory to sync from |
+| `target_volume` | string | Docker volume to sync into |
+| `target_path` | string | Path inside the volume (must be absolute, default: `/`) |
+| `apply_mode` | string | `hot` (default) or `cold` |
+| `exclude` | list | Gitignore-style patterns to exclude |
+| `ownership` | object | Ownership and permission settings |
+| `restart_services` | string or list | Services to restart after sync |
 
 ## Using Filesets with Compose
 
@@ -126,12 +191,6 @@ Filesets support two apply modes that control how files are synchronized with ru
 
 With `apply_mode: hot`, Dockform syncs files while containers are running, then restarts configured services.
 
-```
-volumes/
-└── nginx-config/
-    └── nginx.conf
-```
-
 **Hot mode workflow:**
 
 1. Sync files to volume (containers keep running)
@@ -148,19 +207,29 @@ Use cold mode when:
 - Atomic updates across multiple files are required
 - Database or critical system configurations are being updated
 
-!!! note
-    Apply mode is configured via metadata files or future manifest extensions. Default is always `hot`.
+```yaml
+stacks:
+  default/db:
+    filesets:
+      init:
+        apply_mode: cold
+```
 
 ## Ownership & Permissions
 
-Filesets can enforce ownership and permission bits on synced files. Create a `.dockform-ownership.yaml` file in your fileset directory:
+Filesets can enforce ownership and permission bits on synced files via the `ownership` block:
 
-```yaml title="volumes/config/.dockform-ownership.yaml"
-user: "1000"
-group: "1000"
-file_mode: "0644"
-dir_mode: "0755"
-preserve_existing: false
+```yaml
+stacks:
+  default/web:
+    filesets:
+      config:
+        ownership:
+          user: "1000"
+          group: "1000"
+          file_mode: "0644"
+          dir_mode: "0755"
+          preserve_existing: false
 ```
 
 | Field | Description |
@@ -169,20 +238,65 @@ preserve_existing: false
 | `group` | Numeric GID or POSIX group name |
 | `file_mode` | Octal permission for files (e.g., `"0644"`) |
 | `dir_mode` | Octal permission for directories (e.g., `"0755"`) |
-| `preserve_existing` | When `true`, only new/updated files get modified |
+| `preserve_existing` | When `true`, only new/updated files get ownership applied |
 
 !!! tip
     Use numeric IDs for portability. Named users/groups must exist inside the helper container (`alpine:3.22`).
 
+### Preserve Existing
+
+When `preserve_existing: true`, ownership and permissions are only applied to files that are newly created or updated during the current sync. Files that already exist in the volume and haven't changed keep their current ownership.
+
+This is useful when:
+
+- Multiple filesets or processes write to the same volume
+- You want to avoid overwriting manually set permissions
+- Initial deploy sets ownership, subsequent syncs only touch new files
+
 ## Excluding Files
 
-Create a `.dockform-exclude` file with gitignore-style patterns:
+Use the `exclude` field with gitignore-style patterns:
 
-```title="volumes/static/.dockform-exclude"
-.git/
-**/.DS_Store
-*.tmp
-node_modules/
+```yaml
+stacks:
+  default/web:
+    filesets:
+      static:
+        exclude:
+          - .git/
+          - "**/.DS_Store"
+          - "*.tmp"
+          - node_modules/
+```
+
+## Restarting Services
+
+Configure services to restart after a fileset is synced using `restart_services`:
+
+```yaml
+stacks:
+  default/web:
+    filesets:
+      config:
+        restart_services: attached    # ← Restart services that mount the target volume
+```
+
+`restart_services` accepts:
+
+| Value | Behavior |
+|-------|----------|
+| `attached` | Automatically discover and restart services that mount the fileset's target volume |
+| List of strings | Restart the named services explicitly |
+
+```yaml
+# Explicit service list
+stacks:
+  default/web:
+    filesets:
+      config:
+        restart_services:
+          - nginx
+          - sidecar
 ```
 
 ## Lifecycle and Operations
@@ -238,42 +352,70 @@ volumes:
     external: true
 ```
 
-### Traefik Configuration
+### Traefik with Custom Target Path
 
-```
-default/traefik/
-├── compose.yaml
-└── volumes/
-    └── config/
-        ├── traefik.yaml
-        └── dynamic/
-            ├── routers.yaml
-            └── middlewares.yaml
-```
+=== "Directory Structure"
 
-```yaml title="default/traefik/compose.yaml"
-services:
-  traefik:
-    image: traefik:v3
-    command:
-      - --configFile=/etc/traefik/traefik.yaml
+    ```
+    default/traefik/
+    ├── compose.yaml
+    └── volumes/
+        └── config/
+            ├── traefik.yaml
+            └── dynamic/
+                └── routers.yaml
+    ```
+
+=== "dockform.yaml"
+
+    ```yaml
+    identifier: myapp
+
+    contexts:
+      default: {}
+
+    stacks:
+      default/traefik:
+        filesets:
+          config:
+            target_path: /etc/traefik
+            restart_services: attached
+    ```
+
+=== "compose.yaml"
+
+    ```yaml
+    services:
+      traefik:
+        image: traefik:v3
+        command:
+          - --configFile=/etc/traefik/traefik.yaml
+        volumes:
+          - config:/etc/traefik
+
     volumes:
-      - config:/etc/traefik
+      config:
+        external: true
+    ```
 
-volumes:
-  config:
-    external: true
-```
+### Database Seeds with Ownership
 
-### Database Seeds
+```yaml title="dockform.yaml"
+identifier: myapp
 
-```
-default/db/
-├── compose.yaml
-└── volumes/
-    └── init/
-        ├── 01-schema.sql
-        └── 02-seed.sql
+contexts:
+  default: {}
+
+stacks:
+  default/db:
+    filesets:
+      init:
+        target_path: /docker-entrypoint-initdb.d
+        apply_mode: cold
+        ownership:
+          user: "999"
+          group: "999"
+          file_mode: "0640"
 ```
 
 ```yaml title="default/db/compose.yaml"
