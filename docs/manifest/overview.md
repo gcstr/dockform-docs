@@ -98,21 +98,35 @@ The identifier labels all resources managed by Dockform. It's used for:
 | ---- | ------- |:--------------:|
 | Map  | `null`  | :lucide-check: |
 
-The contexts map defines which Docker contexts (daemons) Dockform manages. Each key must match an existing [Docker Context](https://docs.docker.com/engine/manage-resources/contexts/).
+The contexts map defines which Docker contexts (daemons) Dockform manages. Each key is a logical name for the context.
+
+When a context does **not** specify `host`, the key must match an existing [Docker Context](https://docs.docker.com/engine/manage-resources/contexts/) on the host machine. When `host` **is** specified, Dockform connects directly to the given endpoint without requiring a pre-configured Docker context.
 
 ```yaml
 contexts:
-  default: {}           # Local Docker daemon
-  remote-server: {}     # Remote daemon via SSH
+  default: {}                          # Local Docker daemon
+  remote-server:                       # Remote daemon — no Docker context setup needed
+    host: ssh://deploy@10.0.0.1
   production:
+    host: ssh://deploy@prod.example.com
     volumes:
       app-data: {}
     networks:
       traefik: {}
 ```
 
-??? tip "Creating remote contexts"
-    To create a context for a remote daemon:
+### `host:`
+
+| Type   | Default |  Required  |
+| ------ | ------- |:----------:|
+| String | `null`  | :lucide-x: |
+
+Optional Docker host URI (e.g., `ssh://user@host`, `tcp://host:2376`, `unix:///var/run/docker.sock`). When set, Dockform uses `DOCKER_HOST` instead of `DOCKER_CONTEXT` for all Docker CLI invocations against this context.
+
+This makes your manifest **portable** — you can clone the project on a new machine and deploy without manually creating Docker contexts first.
+
+!!! tip
+    When `host` is omitted, the context key must match a Docker context configured on the host machine. You can create one with:
 
     ```bash
     docker context create \
@@ -123,7 +137,7 @@ contexts:
 
 ### Context Resources
 
-Each context can define:
+Each context can also define:
 
 - `volumes:` - Docker volumes to create
 - `networks:` - Docker networks to create
