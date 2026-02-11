@@ -1,5 +1,6 @@
 ---
 title: Snapshots and Restore
+icon: lucide/archive-restore
 ---
 
 # Snapshots and Restore

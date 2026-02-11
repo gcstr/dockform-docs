@@ -10,6 +10,7 @@ nav = [
     { "Introduction" = [
       { "What is Dockform?" = "introduction/what_is_dockform.md" },
       { "Getting Started" = "introduction/getting_started.md" },
+      { "End-to-End Tutorial" = "introduction/tutorial.md" },
       { "Migrating to v0.8" = "introduction/migration_v08.md" },
       { "Why not X?" = "introduction/why_not_x.md" },
     ]},
