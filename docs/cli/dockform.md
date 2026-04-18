@@ -26,6 +26,7 @@ Manage Docker Compose projects declaratively
 * [dockform dashboard](/cli/dockform_dashboard)	 - Launch the Dockform dashboard (fullscreen TUI)
 * [dockform destroy](/cli/dockform_destroy)	 - Destroy all managed resources
 * [dockform doctor](/cli/dockform_doctor)	 - Run a quick health scan and report system readiness for Dockform
+* [dockform images](/cli/dockform_images)	 - Manage and check container images
 * [dockform init](/cli/dockform_init)	 - Create a template dockform.yml configuration file
 * [dockform manifest](/cli/dockform_manifest)	 - Work with the manifest file
 * [dockform plan](/cli/dockform_plan)	 - Show the plan to reach the desired state

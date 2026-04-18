@@ -37,6 +37,25 @@ export default [
             "link": "/cli/dockform_doctor"
           },
           {
+            "text": "images",
+            "link": "/cli/dockform_images",
+            "items": [
+              {
+                "text": "check",
+                "link": "/cli/dockform_images_check"
+              },
+              {
+                "text": "pull",
+                "link": "/cli/dockform_images_pull"
+              },
+              {
+                "text": "upgrade",
+                "link": "/cli/dockform_images_upgrade"
+              }
+            ],
+            "collapsed": true
+          },
+          {
             "text": "init",
             "link": "/cli/dockform_init"
           },
