@@ -1,0 +1,44 @@
+# Dockform
+
+> Declarative infrastructure for Docker Compose across one or more servers.
+
+Dockform is a thin declarative layer on Docker Compose. You describe stacks, external networks, volumes, filesets, secrets, and related resources in a manifest and apply them with the `dockform` CLI—no extra cluster or database. It fits single-server, multi-context (e.g. local vs SSH remote), homelab, and small-team workflows.
+
+- Human-readable docs: https://dockform.io/
+- Source & issues: https://github.com/gcstr/dockform
+- Sitemap: https://dockform.io/sitemap.xml
+- Machine-readable doc map: https://dockform.io/llms-full.txt
+
+## Start here
+
+- [What is Dockform?](https://dockform.io/introduction/what_is_dockform/)
+- [Getting started](https://dockform.io/introduction/getting_started/)
+- [End-to-end tutorial](https://dockform.io/introduction/tutorial/)
+- [Manifest overview](https://dockform.io/manifest/overview/)
+- [dockform CLI overview](https://dockform.io/cli/dockform/)
+
+## Manifest topics
+
+- [Stacks](https://dockform.io/manifest/stacks/)
+- [Interpolation](https://dockform.io/manifest/interpolation/)
+- [Volumes](https://dockform.io/manifest/volumes/)
+- [Filesets](https://dockform.io/manifest/filesets/)
+- [Networks](https://dockform.io/manifest/networks/)
+- [Secrets (overview)](https://dockform.io/manifest/secrets/)
+- [Secrets with age + SOPS](https://dockform.io/manifest/secrets/age_with_sops/)
+- [Secrets with GnuPG + SOPS](https://dockform.io/manifest/secrets/gpg_with_sops/)
+
+## Operations & CLI
+
+- [Best practices](https://dockform.io/more/best_practices/)
+- [Snapshots & restore](https://dockform.io/more/snapshots_and_restore/)
+- [Dashboard](https://dockform.io/more/dashboard/)
+- [Debugging](https://dockform.io/more/debugging/)
+- [Migrating to v0.8](https://dockform.io/introduction/migration_v08/)
+- [Why not X?](https://dockform.io/introduction/why_not_x/)
+
+For every subcommand reference, see the “CLI Reference” section in https://dockform.io/llms-full.txt or browse https://dockform.io/cli/dockform/ and linked pages.
+
+## License & accuracy
+
+Documentation is published in good faith for Dockform users. Implementation details and defaults can change between releases; prefer the linked HTML pages and the GitHub repository for the authoritative CLI behavior. License for the Dockform project: see the main repository.

@@ -1,0 +1,91 @@
+# Dockform — full documentation map
+
+> Same project summary as https://dockform.io/llms.txt — this file lists every published doc URL with a short hint.
+
+Base URL: https://dockform.io/
+Repository: https://github.com/gcstr/dockform
+
+---
+
+## Introduction
+
+- [What is Dockform?](https://dockform.io/introduction/what_is_dockform/) — product overview, v0.8 highlights, use cases, why Dockform exists.
+- [Getting started](https://dockform.io/introduction/getting_started/) — install and first steps.
+- [End-to-end tutorial](https://dockform.io/introduction/tutorial/) — guided walkthrough.
+- [Migrating to v0.8](https://dockform.io/introduction/migration_v08/) — upgrade notes for the v0.8 manifest and workflow changes.
+- [Why not X?](https://dockform.io/introduction/why_not_x/) — comparisons and positioning vs alternatives.
+
+## Manifest file
+
+- [Overview](https://dockform.io/manifest/overview/) — manifest concepts and structure.
+- [Stacks](https://dockform.io/manifest/stacks/) — defining and organizing Compose stacks.
+- [Interpolation](https://dockform.io/manifest/interpolation/) — variables and templating in the manifest.
+- [Volumes](https://dockform.io/manifest/volumes/) — declarative volume lifecycle.
+- [Filesets](https://dockform.io/manifest/filesets/) — managed files on disk alongside stacks.
+- [Networks](https://dockform.io/manifest/networks/) — external and declarative networks.
+- [Secrets — overview](https://dockform.io/manifest/secrets/) — secrets model in Dockform.
+- [Secrets — age with SOPS](https://dockform.io/manifest/secrets/age_with_sops/) — encrypting secrets with age and SOPS.
+- [Secrets — GnuPG with SOPS](https://dockform.io/manifest/secrets/gpg_with_sops/) — encrypting secrets with GPG and SOPS.
+
+## Guides (more)
+
+- [Best practices](https://dockform.io/more/best_practices/) — recommended patterns.
+- [Snapshots & restore](https://dockform.io/more/snapshots_and_restore/) — volume snapshots and restore flows.
+- [Dashboard](https://dockform.io/more/dashboard/) — using the Dockform dashboard.
+- [Debugging](https://dockform.io/more/debugging/) — troubleshooting and diagnostics.
+
+## CLI reference — top-level
+
+- [dockform](https://dockform.io/cli/dockform/) — root command and global usage.
+
+## CLI reference — lifecycle & stacks
+
+- [apply](https://dockform.io/cli/dockform_apply/) — apply manifest to targets.
+- [plan](https://dockform.io/cli/dockform_plan/) — show planned changes.
+- [destroy](https://dockform.io/cli/dockform_destroy/) — tear down managed resources.
+- [validate](https://dockform.io/cli/dockform_validate/) — validate manifest.
+- [doctor](https://dockform.io/cli/dockform_doctor/) — environment checks.
+- [compose](https://dockform.io/cli/dockform_compose/) — Compose-related commands.
+- [compose render](https://dockform.io/cli/dockform_compose_render/) — render Compose output.
+- [version](https://dockform.io/cli/dockform_version/) — print version.
+
+## CLI reference — manifest & init
+
+- [init](https://dockform.io/cli/dockform_init/) — scaffold a project.
+- [manifest](https://dockform.io/cli/dockform_manifest/) — manifest operations.
+- [manifest render](https://dockform.io/cli/dockform_manifest_render/) — render manifest views.
+
+## CLI reference — secrets
+
+- [secrets](https://dockform.io/cli/dockform_secrets/) — secrets subcommands overview.
+- [secrets create](https://dockform.io/cli/dockform_secrets_create/)
+- [secrets decrypt](https://dockform.io/cli/dockform_secrets_decrypt/)
+- [secrets edit](https://dockform.io/cli/dockform_secrets_edit/)
+- [secrets rekey](https://dockform.io/cli/dockform_secrets_rekey/)
+
+## CLI reference — volumes
+
+- [volume](https://dockform.io/cli/dockform_volume/) — volume commands overview.
+- [volume snapshot](https://dockform.io/cli/dockform_volume_snapshot/)
+- [volume restore](https://dockform.io/cli/dockform_volume_restore/)
+
+## CLI reference — shell completion
+
+- [completion](https://dockform.io/cli/dockform_completion/) — completion overview.
+- [completion bash](https://dockform.io/cli/dockform_completion_bash/)
+- [completion fish](https://dockform.io/cli/dockform_completion_fish/)
+- [completion powershell](https://dockform.io/cli/dockform_completion_powershell/)
+- [completion zsh](https://dockform.io/cli/dockform_completion_zsh/)
+
+## CLI reference — other
+
+- [dashboard](https://dockform.io/cli/dockform_dashboard/) — dashboard command.
+
+---
+
+## For automated agents
+
+- Prefer this file or https://dockform.io/llms.txt for a sitemap-style index in plain text.
+- HTML pages are the canonical, styled source; this index may lag slightly if navigation changes between site deploys.
+- `robots.txt`: https://dockform.io/robots.txt
+- `sitemap.xml`: https://dockform.io/sitemap.xml
