@@ -14,6 +14,16 @@ Think of Dockform as the missing declarative layer for everything you'd otherwis
 
 [![dockform preview](preview.png)](preview.png)
 
+## What's New in v0.9
+
+Dockform now does helps keeping images up to date: tells you what's out of date, pulls what you want to keep floating, and rewrites tags in your compose files so you can review the change like any other commit.
+
+- **Image management commands**: `dockform images check`, `pull`, and `upgrade` report freshness, pull digest-drifted images, and rewrite outdated tags in your compose files
+- **Per-service tag policy**: set `dockform.tag_pattern` as a compose label on each service to control which tags count as upgrades
+- **UI/UX improvements**
+
+See the [Image Management](../more/images.md) guide for the full workflow.
+
 ## What's New in v0.8
 
 - **Multi-context support**: Deploy to multiple Docker daemons from a single manifest
