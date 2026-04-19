@@ -72,6 +72,80 @@ contexts:
       --description="Production server"
     ```
 
+## Environments
+
+Dockform doesn't have an "environment" concept of its own. What you have instead are **contexts** (one per Docker daemon) and **interpolation** (shell variables expanded into the manifest at load time). Those two primitives cover the usual `dev` `staging` `prod` split, but how you wire them up changes the feel of the repo.
+
+There are two patterns that work. Pick the one that matches how you actually run the tool.
+
+### Pattern A: one context per environment
+
+Each environment is a separate context. Dockform's auto-discovery already scopes stacks and env files by context directory, so you get per-environment isolation for free.
+
+```yaml title="dockform.yml"
+identifier: homelab
+
+contexts:
+  development:
+    host: ssh://dev-machine
+  production:
+    host: ssh://prod-machine
+```
+
+```
+development/web/compose.yaml
+development/web/environment.env
+development/web/secrets.env
+production/web/compose.yaml        # symlink → ../../development/web/compose.yaml
+production/web/environment.env
+production/web/secrets.env
+```
+
+The symlink keeps `compose.yaml` as a single source of truth. If symlinks are awkward in your setup, move the compose file to a shared directory and point both stacks at it with an explicit `stacks:` block:
+
+```yaml
+stacks:
+  development/web:
+    root: ./shared/web
+  production/web:
+    root: ./shared/web
+```
+
+**Good when.** You want to plan or apply against any environment from any shell. You run CI that deploys to multiple hosts. You want `dockform plan --context production` to work without pre-setup.
+
+### Pattern B: one context, shell picks the environment
+
+You are almost always working against a single environment at a time: on your laptop you target dev, on the server you target prod. A shell helper like [direnv](https://direnv.net/) switches which values are exported, and the manifest reads them with `${VAR}`.
+
+```bash title=".envrc"
+dotenv environment.env       # sets ENVIRONMENT=development
+dotenv ${ENVIRONMENT}.env    # loads development.env or production.env
+```
+
+```yaml title="dockform.yml"
+identifier: homelab
+
+contexts:
+  server:
+    host: ${CONTEXT_SERVER_HOST}
+
+discovery:
+  environment_file: ${ENVIRONMENT}.env
+  secrets_file: ${ENVIRONMENT}.secrets.env
+```
+
+```
+server/web/compose.yaml
+server/web/development.env
+server/web/development.secrets.env
+server/web/production.env
+server/web/production.secrets.env
+```
+
+**Good when.** You only ever deploy one environment from a given shell. The compose files live in one place, no symlinks.
+
+**Watch out for.** Running `dockform plan` in a shell where `direnv` didn't load will fail with a confusing interpolation error. You cannot diff dev against prod in the same session. CI jobs need to export the right variables before calling Dockform.
+
 ## Volumes
 
 - Declare named volumes under `contexts.<name>.volumes:`
