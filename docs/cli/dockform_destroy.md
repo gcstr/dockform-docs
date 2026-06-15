@@ -19,6 +19,10 @@ This command will:
 Warning: This operation is irreversible and will destroy ALL managed resources,
 regardless of what's in your current configuration file.
 
+Use --stack or --context to scope the destroy. When scoped, only the targeted
+stacks' services and their own fileset volumes are removed; shared context-level
+networks and volumes are preserved.
+
 ```
 dockform destroy [flags]
 ```
