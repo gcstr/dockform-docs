@@ -6,8 +6,16 @@ title: Dockform Volume Restore
 
 Restore a snapshot into a Docker volume
 
+### Synopsis
+
+Restore a snapshot into a Docker volume.
+
+For multi-context setups, address the volume as <context>/<volume>
+(e.g. hetzner-two/netbird_data). A bare volume name is allowed only when a
+single context is configured.
+
 ```
-dockform volume restore <volume> <snapshot-path> [flags]
+dockform volume restore <[context/]volume> <snapshot-path> [flags]
 ```
 
 ### Options

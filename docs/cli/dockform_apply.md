@@ -16,6 +16,7 @@ dockform apply [flags]
       --context strings        Target specific context(s)
       --deployment string      Target a named deployment group
   -h, --help                   help for apply
+      --long                   Show the full plan including unchanged resources
       --sequential             Use sequential processing instead of the default parallel processing (slower but uses less CPU and Docker daemon resources)
       --skip-confirmation      Skip confirmation prompt and apply immediately
       --stack strings          Target specific stack(s) in context/stack format
