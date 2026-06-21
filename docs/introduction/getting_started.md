@@ -128,15 +128,27 @@ dockform plan
 
 Output:
 ```
-│ Context: default
-│ Identifier: quickstart
+│ Identifier:  quickstart
+│ Contexts:    default
 
 Stacks
   default/web
-    + nginx will be created
+    ↑ nginx will be created
 
 Plan: 1 to create, 0 to change, and 0 to destroy
 ```
+
+By default, `plan` and `apply` show a **changes-only** view: resources that are
+already up to date are collapsed into a per-section `N unchanged` count instead of
+being listed line by line. This keeps the output readable on large, multi-context
+setups. When nothing needs to change, you'll simply see:
+
+```
+No changes. 3 resources up to date.
+```
+
+Pass `--long` to `plan` or `apply` to print the full list, including every
+unchanged resource.
 
 ### 5. Apply
 
