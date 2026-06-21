@@ -22,10 +22,26 @@ The snapshot and restore system in Dockform:
 ### Basic Usage
 
 ```bash
-dockform volume snapshot <volume-name>
+dockform volume snapshot <[context/]volume>
 ```
 
-This creates a snapshot of the specified volume in the default location: `./.dockform/snapshots/` relative to your manifest file.
+This creates a snapshot of the specified volume in the default location: `./.dockform/snapshots/<context>/<volume>/` relative to your manifest file.
+
+### Targeting a context
+
+For multi-context setups, address the volume as `<context>/<volume>`, the same
+`context/stack` convention used elsewhere in Dockform. This selects the Docker
+context the volume lives on:
+
+```bash
+dockform volume snapshot server-two/netbird_data
+```
+
+A bare volume name (no `context/` prefix) is only allowed when a single context
+is configured. With multiple contexts, Dockform asks you to disambiguate with
+the `context/volume` form. Snapshots are
+named by context under `./.dockform/snapshots/<context>/<volume>/`, so the same
+volume name on different hosts never collides.
 
 ### Advanced Options
 
@@ -89,12 +105,14 @@ Before restoring a snapshot:
 ### Basic Restore
 
 ```bash
-dockform volume restore <volume-name> <snapshot-path>
+dockform volume restore <[context/]volume> <snapshot-path>
 ```
+
+The volume accepts the same `context/volume` form as `snapshot` (and follows the same single-context default).
 
 Example:
 ```bash
-dockform volume restore myapp_data ./.dockform/snapshots/myapp_data/2023-10-04T15-30-45Z__spec-a1b2c3d4.tar.zst
+dockform volume restore server-two/myapp_data ./.dockform/snapshots/server-two/myapp_data/2023-10-04T15-30-45Z__spec-a1b2c3d4.tar.zst
 ```
 
 ### Restore Options

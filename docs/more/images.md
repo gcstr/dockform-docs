@@ -57,6 +57,12 @@ A service without a `dockform.tag_pattern` label still gets the digest check. Do
 
     Without the doubling, Compose either eats the `$` or errors out on an unknown variable.
 
+    Because Dockform reads the pattern *after* Compose interpolation, a lone `$`
+    is already gone by the time it's seen, so the pattern silently matches the
+    wrong tags. To catch this, `dockform images check` **warns** when a
+    `tag_pattern` isn't anchored with a trailing `$` (a missed escape).
+    If your pattern is intentionally unanchored, you can ignore the warning.
+
 ## Commands
 
 ### `dockform images check`

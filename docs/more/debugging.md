@@ -275,6 +275,33 @@ For troubleshooting docker compose config errors independently:
 - `docker compose -f <file> config` - validate and resolve a specific Compose file
 - `docker compose config --quiet` - suppress warnings during validation
 
+### Unreachable contexts
+
+Before doing any work, Dockform probes every **selected** context's Docker daemon.
+If one is unreachable, the command **fails fast** with a clear, aggregated error:
+
+```
+Error: 2 contexts are unreachable:
+  • server-one: timed out after 10s
+  • server-three: timed out after 10s
+Check the hosts are up and your Docker contexts are correct (docker context ls).
+```
+
+This is **all-or-nothing**: if any selected context is down, the command stops
+(exit code `69`) rather than partially applying. To operate on just the reachable
+hosts, narrow the scope with `--context`:
+
+```bash
+# Apply only to the contexts that are up
+dockform apply --context server-two
+```
+
+`dockform doctor` checks the **active** Docker context (or the one you pass with
+`--context`), not every context in your manifest — so to verify a specific remote
+host, target it directly: `dockform doctor --context hetzner-one`. If a
+*reachable* context is merely slow, see
+[Performance over SSH](performance_over_ssh.md).
+
 ## Quick reference
 
 ### When to use which tool

@@ -34,6 +34,7 @@ nav = [
       { "Snapshots & Restore" = "more/snapshots_and_restore.md" },
       { "Image Management" = "more/images.md" },
       { "Dashboard" = "more/dashboard.md" },
+      { "Performance over SSH" = "more/performance_over_ssh.md" },
       { "Debugging" = "more/debugging.md" },
     ]},
   ]},
