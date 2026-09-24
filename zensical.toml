@@ -5,6 +5,9 @@ site_author = "gcstr"
 site_url = "https://dockform.io"
 repo_url = "https://github.com/gcstr/dockform"
 
+# Fail the build on broken links or anchors instead of publishing them.
+strict = true
+
 nav = [
   { "Introduction" = [
     { "Introduction" = [
@@ -72,6 +75,7 @@ nav = [
       { "volume" = "cli/dockform_volume.md" },
     ]},
   ]},
+  { "Changelog" = "changelog.md" },
 ]
 
 # Theme Configuration
@@ -152,3 +156,15 @@ alternate_style = true
 [project.markdown_extensions.admonition]
 
 [project.markdown_extensions.pymdownx.details]
+
+# Click an image to open it in a zoomable lightbox.
+[project.markdown_extensions.zensical.extensions.glightbox]
+
+# Old URLs and anchors that moved, so bookmarks and external links still land
+# in the right place.
+[project.plugins.redirects.redirect_maps]
+"introduction/what_is_dockform.md#whats-new-in-v09" = "changelog.md#v09"
+"introduction/what_is_dockform.md#whats-new-in-v08" = "changelog.md#v08"
+"manifest/secrets/index.md#2-reference-secrets-in-dockformyaml" = "manifest/secrets/index.md#2-put-the-file-where-dockform-discovers-it"
+"manifest/secrets/index.md#stack-specific-secrets" = "manifest/secrets/index.md#additional-secrets-files"
+"more/performance_over_ssh.md#reuse-one-connection-ssh-multiplexing" = "more/performance_over_ssh.md#ssh-transports"

@@ -44,10 +44,7 @@ my-project/
 │               └── styles.css
 ```
 
-Each subdirectory of `volumes/` becomes a fileset. The directory name is used as:
-
-- The **fileset name**
-- The **target volume name** (created if it doesn't exist)
+Each subdirectory of `volumes/` becomes a fileset named after the directory. Its target volume is named `<stack>_<fileset>`, so `default/web/volumes/config/` syncs into a volume called `web_config` (created if it doesn't exist).
 
 ### Discovery Defaults
 
@@ -56,9 +53,10 @@ For each discovered fileset:
 | Property | Default Value |
 |----------|---------------|
 | `source` | `<stack>/volumes/<fileset>/` |
-| `target_volume` | `<fileset>` (same as directory name) |
-| `target_path` | `/<fileset>` (root path with fileset name) |
+| `target_volume` | `<stack>_<fileset>` (for example `web_config`) |
+| `target_path` | `/` (the root of the volume) |
 | `apply_mode` | `hot` |
+| `restart_services` | `attached` (services that mount the volume are restarted after a sync) |
 
 ### Customizing Discovery
 
@@ -120,7 +118,7 @@ stacks:
   default/web:
     filesets:
       config:
-        source: ./shared/nginx-config    # ← Source outside the stack directory
+        source: shared/nginx-config      # ← Relative to the manifest, not the stack
         target_volume: nginx_config
         target_path: /etc/nginx
         exclude:
@@ -131,7 +129,7 @@ stacks:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `source` | string | Local directory to sync from |
+| `source` | string | Local directory to sync from. A relative path is resolved from the directory containing the manifest, not the stack's directory |
 | `target_volume` | string | Docker volume to sync into |
 | `target_path` | string | Path inside the volume (must be absolute, default: `/`) |
 | `apply_mode` | string | `hot` (default) or `cold` |
@@ -162,14 +160,14 @@ Reference fileset volumes as `external` in your compose files:
       traefik:
         image: traefik:v3
         volumes:
-          - config:/etc/traefik
+          - traefik_config:/etc/traefik
 
     volumes:
-      config:
+      traefik_config:
         external: true
     ```
 
-The `config` volume is automatically created and synced with the contents of `volumes/config/`.
+The `traefik_config` volume is automatically created and synced with the contents of `volumes/config/`.
 
 ## How Sync Works
 
@@ -305,7 +303,13 @@ stacks:
 | -- | -- |
 | **plan** | Shows file operations per fileset when Docker is available |
 | **apply** | Ensures volume exists, computes diffs, syncs changes, writes index, queues restarts |
-| **destroy** | Removes fileset-associated volumes along with other labeled resources |
+| **destroy** | Removes fileset-associated volumes along with other labeled resources, listing each one by volume name. A volume marked [`destroy: false`](volumes.md#keeping-a-volume-on-destroy) is kept even when a fileset targets it |
+
+If a fileset's `source` directory doesn't exist, validation fails and prints the full path it resolved, so you can see where Dockform looked:
+
+```
+Error: fileset default/web/config source /path/to/project/shared/nginx-config does not exist
+```
 
 ## Multi-Context Filesets
 
@@ -345,10 +349,10 @@ services:
   nginx:
     image: nginx:alpine
     volumes:
-      - html:/usr/share/nginx/html
+      - web_html:/usr/share/nginx/html
 
 volumes:
-  html:
+  web_html:
     external: true
 ```
 
@@ -366,7 +370,7 @@ volumes:
                 └── routers.yaml
     ```
 
-=== "dockform.yaml"
+=== "dockform.yml"
 
     ```yaml
     identifier: myapp
@@ -391,16 +395,16 @@ volumes:
         command:
           - --configFile=/etc/traefik/traefik.yaml
         volumes:
-          - config:/etc/traefik
+          - traefik_config:/etc/traefik
 
     volumes:
-      config:
+      traefik_config:
         external: true
     ```
 
 ### Database Seeds with Ownership
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 identifier: myapp
 
 contexts:
@@ -423,10 +427,10 @@ services:
   postgres:
     image: postgres:16
     volumes:
-      - init:/docker-entrypoint-initdb.d
+      - db_init:/docker-entrypoint-initdb.d
 
 volumes:
-  init:
+  db_init:
     external: true
 ```
 

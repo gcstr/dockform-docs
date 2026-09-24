@@ -7,29 +7,16 @@ icon: lucide/message-circle-question-mark
 
 # What is Dockform?
 
-Dockform extends Docker Compose with a fully declarative workflow.  
-It lets you manage not only your Compose stacks, but also the supporting resources that normally sit outside of `docker-compose.yml` — such as external networks, volume lifecycles, secrets, and configuration files.
+Dockform **extends** Docker Compose with a fully declarative workflow.  
+It lets you manage not only your Compose stacks, but also the supporting resources that normally sit outside of `docker-compose.yml`, such as external networks, volume lifecycles, secrets, and configuration files.
 
 Think of Dockform as the missing declarative layer for everything you'd otherwise configure manually with commands like `docker network create`, `docker volume create`, or ad-hoc shell scripts. All of it is written as code, stored in a manifest, and applied consistently.
 
-[![dockform preview](preview.png)](preview.png)
+Dockform is also **unobtrusive**. Your compose files remain regular Compose files, and all Dockform requires is a single manifest file sitting alongside them. Nothing needs to be installed on your servers either: Dockform runs on your machine and reaches each remote host over SSH, so all a server needs is a running Docker daemon.
 
-## What's New in v0.9
+![dockform preview](preview.png)
 
-Dockform now does helps keeping images up to date: tells you what's out of date, pulls what you want to keep floating, and rewrites tags in your compose files so you can review the change like any other commit.
-
-- **Image management commands**: `dockform images check`, `pull`, and `upgrade` report freshness, pull digest-drifted images, and rewrite outdated tags in your compose files
-- **Per-service tag policy**: set `dockform.tag_pattern` as a compose label on each service to control which tags count as upgrades
-- **UI/UX improvements**
-
-See the [Image Management](../more/images.md) guide for the full workflow.
-
-## What's New in v0.8
-
-- **Multi-context support**: Deploy to multiple Docker daemons from a single manifest
-- **Automatic discovery**: Stacks and filesets are found from your directory structure
-- **Simplified schema**: Less boilerplate, more convention-over-configuration
-- **Context-scoped resources**: Volumes and networks are defined per context
+See the [Changelog](../changelog.md) for what's new in each release.
 
 ## Use Cases
 

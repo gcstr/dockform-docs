@@ -21,6 +21,7 @@ Dockform provides several diagnostic commands to help you understand what's happ
 | `dockform manifest render` | Inspect processed manifest | Debug environment interpolation, validate structure |
 | `dockform compose render` | View resolved Compose config | Debug stack-specific issues, inspect final output |
 | `--log-file` or `--verbose` | View full execution logs | Debug runtime issues |
+| `.dockform/logs/` | Full debug log of every `apply` | After a failed or surprising apply |
 
 ## Validation with `doctor`
 
@@ -34,35 +35,32 @@ $ dockform doctor
 $ dockform doctor -v
 
 # Check specific configuration file
-$ dockform doctor -c ./path/to/dockform.yml
+$ dockform doctor --manifest ./path/to/dockform.yml
 ```
 
 ### What it checks
 
 The doctor command performs a comprehensive health check of your Dockform environment. It validates that Docker and Docker Compose are accessible, checks for required dependencies like SOPS and encryption backends (Age/GnuPG), verifies your manifest configuration and file structure, and tests Docker permissions for network and volume operations. The command provides clear pass/warn/fail status for each check, helping you quickly identify and resolve setup issues before they impact your deployments.
 
+When it finds a manifest, doctor checks that **every context in it** is reachable, all at once, with a 10 second limit per context, so a host that's down shows up as a failed check instead of hanging the scan. Pass `--context <name>` to check just that one. Without a manifest, it checks the active Docker context.
+
 ### Example output
 <div style="font-size: 11px">
   <pre>
   <span style="color:#22c55e;">$</span><span style="font-weight:bold;"> dockform doctor</span>
-  Dockform Doctor — health scan
+  Dockform (v0.10.0) Doctor: health scan
   Context: default  •  Host: unix:///var/run/docker.sock
 
-  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[engine]</span> Docker Engine reachable — v28.3.3
-  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[context]</span> Active context reachable — &quot;default&quot;
-  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[compose]</span> Docker Compose plugin — 2.39.2
-  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[sops]</span> SOPS present — sops 3.11.0 (latest)
-  │     Note that in a future version, sops will no longer check whether the
-  │     current version is the latest when asking for sops' version. If you want
-  │     to explicitly check for the latest version, add the
-  │     `--check-for-updates` option to `sops --version`. This will hide this
-  │     deprecation warning and will always check, even if the default behavior
-  │     changes in the future.
-  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[helper]</span> Helper image present — alpine:3.22
-  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[net-perms]</span> Network create/remove — ok
-  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[vol-perms]</span> Volume create/remove — ok
+  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[engine]</span> Docker Engine reachable: v29.8.1
+  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[context:default]</span> Context &quot;default&quot; reachable: ok
+  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[context:server-one]</span> Context &quot;server-one&quot; reachable: ok
+  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[compose]</span> Docker Compose plugin: 5.5.1
+  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[sops]</span> SOPS present: sops 3.11.0
+  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[helper]</span> Helper image present: alpine:3.22
+  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[net-perms]</span> Network create/remove: ok
+  │ <span style="color:#22c55e;">✓</span> <span style="color:#3b82f6;">[vol-perms]</span> Volume create/remove: ok
 
-  Summary: 7 checks • 7 PASS, 0 WARN, 0 FAIL
+  Summary: 8 checks • 8 PASS, 0 WARN, 0 FAIL
   All good!
   Completed in 0.6s • exit code 0
   </pre>
@@ -102,8 +100,8 @@ dockform manifest render
 
 # Or specify a path (file or directory); discovery order:
 # dockform.yml, dockform.yaml, Dockform.yml, Dockform.yaml
-dockform manifest render -c ./path/to/dir
-dockform manifest render -c ./path/to/dockform.yml
+dockform manifest render --manifest ./path/to/dir
+dockform manifest render --manifest ./path/to/dockform.yml
 ```
 
 - **TTY behavior**: Opens a fullscreen pager with highlighted YAML and line numbers.
@@ -114,7 +112,7 @@ Examples:
 
 ```bash
 # Pipe the interpolated manifest to a file
-dockform manifest render -c ./infra > manifest.debug.yml
+dockform manifest render --manifest ./infra > manifest.debug.yml
 
 # Grep for resolved values
 dockform manifest render | grep identifier
@@ -144,7 +142,7 @@ dockform compose render myapp --mask preserve-length # same length as original
 dockform compose render myapp --show-secrets         # OPT-IN: disable masking
 
 # Respect a non-default manifest path
-dockform compose render myapp -c ./envs/prod
+dockform compose render myapp --manifest ./envs/prod
 ```
 
 - **TTY behavior**: Opens a fullscreen pager with highlighted YAML, line numbers, and a relative file title (e.g., File: apps/web/docker-compose.yml). If multiple files are merged, the title shows a suffix like (+N).
@@ -260,6 +258,22 @@ dockform apply --log-file /tmp/deployment.log --log-level info
 
 The log file always uses JSON format regardless of the `--log-format` setting, making it easy to parse and analyze programmatically.
 
+### Run logs
+
+Every `dockform apply` writes a complete log of the run to
+`.dockform/logs/apply-<timestamp>.log` next to your manifest, so you never need
+to re-run a failed apply just to see what happened. When an apply fails, its
+summary tells you the path.
+
+- The run log is always at `debug` level, whatever `--log-level` says, and always JSON.
+- Dockform keeps the 10 newest run logs and deletes older ones. It never touches other files in that directory.
+- If the manifest directory isn't writable, the log goes to your user config directory instead (`~/.config/dockform/logs` on Linux) and Dockform tells you where.
+- `--log-file` replaces the run log rather than adding a second copy.
+
+Run logs can contain details about your hosts, so keep them out of git.
+`dockform init` adds `.dockform/` to your `.gitignore`, and `apply` warns if the
+directory isn't ignored.
+
 !!! Note "Log analysis tips"
     - **Use `jq` for JSON logs**: `cat dockform.log | jq '.level, .msg'`
     - **Filter by log level**: `cat dockform.log | jq 'select(.level == "error")'`
@@ -296,11 +310,28 @@ hosts, narrow the scope with `--context`:
 dockform apply --context server-two
 ```
 
-`dockform doctor` checks the **active** Docker context (or the one you pass with
-`--context`), not every context in your manifest — so to verify a specific remote
-host, target it directly: `dockform doctor --context hetzner-one`. If a
-*reachable* context is merely slow, see
+`dockform doctor` checks every context in your manifest the same way, so it's a
+quick way to see which hosts are down. To check a single host, pass
+`--context hetzner-one`. If a *reachable* context is merely slow, see
 [Performance over SSH](performance_over_ssh.md).
+
+When one context fails partway through an `apply`, the other contexts finish the
+work they already started instead of being cut off. The command still exits with
+an error.
+
+### Reading apply errors
+
+When `docker compose` fails, Dockform shows what compose actually printed and
+only adds a hint when that output supports it. Hints cover the common cases:
+registry authentication, a missing image, SSH session limits and SSH tunnel
+failures. If there is no hint, the compose message above it is the thing to read.
+
+### Best-effort steps
+
+Some steps are allowed to fail without stopping the run, for example when SSH
+multiplexing can't be set up or when `images check` can't read running image
+digests on a context. Dockform logs a warning when that happens, so a degraded
+run is visible instead of silently slower or less accurate.
 
 ## Quick reference
 

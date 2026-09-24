@@ -10,13 +10,15 @@ Dockform includes a fullscreen terminal dashboard that gives you a live, at‑a�
 ## Launching
 
 - Basic: `dockform dashboard`
-- With a specific manifest: `dockform dashboard --config path/to/dockform.yaml`
+- With a specific manifest: `dockform dashboard --manifest path/to/dockform.yml`
 
-The dashboard uses your manifest to discover stacks and services, and your Docker context to query runtime state. If `--config` is omitted, Dockform resolves the manifest path from the current working directory or your configured base directory.
+The dashboard uses your manifest to discover stacks and services, and your Docker context to query runtime state. If `--manifest` is omitted, Dockform looks for the manifest in the current working directory.
+
+For `ssh://` contexts, the dashboard always uses the `mux` SSH transport, even though `tunnel` is the default for other commands. It runs for as long as you keep it open, and `mux` recovers on its own after a laptop sleeps or the network changes. See [Performance over SSH](performance_over_ssh.md).
 
 ## Layout
 
-[![dockform-dashboard](dashboard.png)](dashboard.png)
+![dockform-dashboard](dashboard.png)
 
 The UI is split into three columns:
 
@@ -54,12 +56,12 @@ When filtering, type to search across stack, service, container, and image field
 
 Press `Ctrl+P` to open a floating command palette centered over the dashboard. The palette shows the currently selected container and offers the following operations:
 
-[![command palette](commands.png)](commands.png)
+![command palette](commands.png)
 
-:lucide-pause: Pause — runs `docker container pause` for the container  
-:lucide-rotate-ccw: Restart — runs `docker container restart`  
-:lucide-octagon-x: Stop — runs `docker container stop`  
-:lucide-trash-2: Delete — force removes the container with `docker container rm -f`  
+:lucide-pause: Pause: runs `docker container pause` for the container  
+:lucide-rotate-ccw: Restart: runs `docker container restart`  
+:lucide-octagon-x: Stop: runs `docker container stop`  
+:lucide-trash-2: Delete: force removes the container with `docker container rm -f`  
 
 Use j/k or the arrow keys to highlight a command, `Enter` to execute it, and `Esc` to close the palette without acting. If no container is selected, the palette indicates it and actions are disabled. After a command runs, the regular status polling and logs stream reflect the new container state automatically.
 

@@ -5,13 +5,13 @@ icon: lucide/award
 
 # Best Practices
 
-This guide collects practical recommendations for using Dockform v0.8 safely and effectively across development, staging, and production environments.
+This guide collects practical recommendations for using Dockform safely and effectively across development, staging, and production environments.
 
 ## Core Principles
 
 - Treat the manifest file as *the* source of truth; avoid imperative Docker commands
 - Use a clear, stable `identifier` (e.g., `myapp`, `server-name`)
-- Leverage automatic discovery—structure directories, minimize manifest config
+- Leverage automatic discovery: structure directories, minimize manifest config
 - Prefer small, focused changes and review with `dockform plan` before `apply`
 
 ## Project Structure
@@ -47,7 +47,8 @@ my-project/
 ## Contexts and Multi-Host
 
 - Define one context per Docker daemon (local, staging, production)
-- Use Docker contexts for remote daemons via SSH
+- Use Docker contexts (or `host: ssh://...`) for remote daemons via SSH; Dockform tunnels to them on its own, no `~/.ssh/config` tuning needed
+- Don't bind mount paths from your project into containers on a remote context; use filesets instead (Dockform rejects them at validation)
 - Keep context-specific resources (volumes, networks) under that context
 
 ```yaml
@@ -150,8 +151,9 @@ server/web/production.secrets.env
 
 - Declare named volumes under `contexts.<name>.volumes:`
 - Reference them as `external: true` in Compose files
-- **Avoid** defining named volumes directly in Compose—let Dockform manage them
+- **Avoid** defining named volumes directly in Compose; let Dockform manage them
 - Regularly backup volumes; `destroy` and `prune` will remove labeled volumes
+- Mark volumes that hold data you can't lose with `destroy: false`, so `dockform destroy` keeps them
 
 ```yaml
 contexts:
@@ -187,32 +189,30 @@ contexts:
 ## Filesets
 
 - Use the `volumes/` directory convention for auto-discovery
-- Keep filesets focused—configs, static assets, seeds (not large data)
-- Use `.dockform-exclude` files to skip build artifacts, VCS metadata, OS files
-- Set ownership via `.dockform-ownership.yaml` when needed
+- Keep filesets focused: configs, static assets, seeds (not large data)
+- Use the fileset's `exclude` patterns to skip build artifacts, VCS metadata and OS files
+- Set `ownership` on the fileset when the container expects specific users or modes
 
-```
-default/web/volumes/
-├── config/
-│   ├── .dockform-exclude
-│   └── nginx.conf
-└── static/
-    ├── index.html
-    └── styles.css
+```yaml title="dockform.yml"
+stacks:
+  default/web:
+    filesets:
+      config:
+        exclude:
+          - .git/
+          - "**/*.tmp"
+          - "**/.DS_Store"
+          - node_modules/
+        ownership:
+          user: "1000"
+          group: "1000"
 ```
 
-Example exclude file:
-
-```title=".dockform-exclude"
-.git/
-**/*.tmp
-**/.DS_Store
-node_modules/
-```
+See [Filesets](../manifest/filesets.md) for every option.
 
 ## Stacks and Discovery
 
-- Let discovery find your stacks—minimize explicit `stacks:` entries
+- Let discovery find your stacks and minimize explicit `stacks:` entries
 - Use `stacks:` only for augmentation: profiles, extra env, secrets, project name
 - Set a stable `project.name` for predictable container naming
 
@@ -290,17 +290,23 @@ jobs:
 ## Safety and Destructive Operations
 
 !!! danger
-    `destroy` removes **all** labeled resources for the active identifier (containers, networks, volumes). Use with care and ensure backups exist.
+    `destroy` removes **all** labeled resources for the active identifier (containers, networks, volumes), except volumes and networks marked `destroy: false`. Use with care and ensure backups exist.
 
 - Always run `dockform plan` before `apply` to review changes
+- Protect stateful volumes with `destroy: false` (see [Volumes](../manifest/volumes.md#keeping-a-volume-on-destroy))
+- Keep `.dockform/` in `.gitignore`: it holds volume snapshots and apply run logs
 - Keep recent backups for stateful volumes before destructive commands
 - Consider using [docker-volume-backup](https://offen.github.io/docker-volume-backup/) for automated backups
 
 ## Performance
 
-- Keep fileset sizes reasonable; use `.dockform-exclude` aggressively
+- Keep fileset sizes reasonable; use `exclude` patterns aggressively
 - Minimize changes per deployment for faster diffs
 - Use stable project and resource names to reduce churn and restarts
+- On small servers, lower `--parallel` (default 2) so `plan` and `apply` put less load on the host at once
+- Split very large stacks: one stack's services all start inside a single `docker compose up`, which `--parallel` doesn't limit
+
+See [Performance over SSH](performance_over_ssh.md) for remote hosts.
 
 ## Troubleshooting
 

@@ -8,7 +8,7 @@ icon: lucide/anchor
 There are many tools that can help manage containers and deployments, and each solves different problems in different ways. Dockform does **not** try to replace them all. Instead, it focuses on solving **one specific problem**: **docker-compose-based deployments across one or more servers**, in a way that is structured, declarative and ergonomic.
 
 !!! note
-    Dockform never modifies your existing Docker Compose files. Instead, it works alongside them, adding support for things that are usually left to ad-hoc scripts and manual commands -- like managing secrets, configs, networks and volumes -- in a way that's Git-friendly and predictable.
+    Dockform doesn't replace your Docker Compose files. It works alongside them, adding support for things that are usually left to ad-hoc scripts and manual commands, like managing secrets, configs, networks and volumes, in a way that's Git-friendly and predictable. The only command that edits a compose file is `dockform images upgrade`, which rewrites image tags so you can review the change like any other commit.
 
 
 ## Orchestrators (Kubernetes, Nomad, Swarm, etc.)
