@@ -89,10 +89,11 @@ only to rule the other transports out while debugging.
 
 ### Which commands use it
 
-`plan`, `apply`, `destroy`, `validate`, and `volume snapshot` and `restore` all
-follow `--ssh-transport`. `dashboard` always uses `mux`. `images check`, `pull`
-and `upgrade` and `doctor` currently connect with Docker's own SSH helper, one
-connection per call, like `direct`.
+`plan`, `apply`, `destroy`, `validate`, `volume snapshot` and `restore`, and
+`images check`, `pull` and `upgrade` all follow `--ssh-transport`. `dashboard`
+always uses `mux`. With the `tunnel` transport, `doctor` checks each context
+through its tunnel, and a context whose tunnel cannot open fails on its own line
+with the SSH reason, so you see what `apply` would run into.
 
 ### Replacing `--ssh-multiplex`
 
