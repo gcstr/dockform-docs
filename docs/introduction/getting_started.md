@@ -15,7 +15,7 @@ Before you begin, make sure you have the following installed:
 
 - [Docker](https://www.docker.com/) with Docker Compose
 - [SOPS](https://github.com/getsops/sops) and [Age](https://github.com/FiloSottile/age) (for secrets management)
-- [Go](https://go.dev/) (optional, for `go install`)
+- [Go](https://go.dev/) 1.27 or later (optional, for `go install`)
 
 ### Homebrew
 
@@ -32,6 +32,8 @@ Using the full `gcstr/dockform/dockform` name adds the tap and trusts just this 
 ```bash
 go install github.com/gcstr/dockform/cmd/dockform@latest
 ```
+
+This needs Go 1.27 or later. If your Go is older, recent versions download 1.27 on their own, unless `GOTOOLCHAIN` is set to `local` (as it is for some Linux distribution packages). In that case, install Go 1.27 from [go.dev](https://go.dev/dl/) or run `GOTOOLCHAIN=auto go install ...`.
 
 ### Precompiled Binaries
 
