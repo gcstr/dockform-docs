@@ -22,9 +22,10 @@ Before you begin, make sure you have the following installed:
 On macOS or Linux, install Dockform using [Homebrew](https://brew.sh/):
 
 ```bash
-brew tap gcstr/dockform
-brew install dockform
+brew install gcstr/dockform/dockform
 ```
+
+Using the full `gcstr/dockform/dockform` name adds the tap and trusts just this formula, which Homebrew 6 and later require for third-party taps. After that, `brew upgrade dockform` keeps it up to date.
 
 ### Go Install
 
