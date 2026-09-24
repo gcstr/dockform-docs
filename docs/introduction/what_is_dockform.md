@@ -7,10 +7,12 @@ icon: lucide/message-circle-question-mark
 
 # What is Dockform?
 
-Dockform extends Docker Compose with a fully declarative workflow.  
+Dockform **extends** Docker Compose with a fully declarative workflow.  
 It lets you manage not only your Compose stacks, but also the supporting resources that normally sit outside of `docker-compose.yml`, such as external networks, volume lifecycles, secrets, and configuration files.
 
 Think of Dockform as the missing declarative layer for everything you'd otherwise configure manually with commands like `docker network create`, `docker volume create`, or ad-hoc shell scripts. All of it is written as code, stored in a manifest, and applied consistently.
+
+Dockform is also **unobtrusive**. Your compose files remain regular Compose files, and all Dockform requires is a single manifest file sitting alongside them. Nothing needs to be installed on your servers either: Dockform runs on your machine and reaches each remote host over SSH, so all a server needs is a running Docker daemon.
 
 ![dockform preview](preview.png)
 
