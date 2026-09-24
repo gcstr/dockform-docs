@@ -9,7 +9,7 @@ A Dockform manifest is a single YAML file that defines all resources needed for 
 
 ## Overview
 
-Dockform v0.8 introduces **automatic discovery** and **multi-context support**. Your manifest can be as simple as:
+Dockform uses **automatic discovery** and **multi-context support**, so your manifest can be as simple as:
 
 ```yaml
 identifier: my-project
@@ -77,6 +77,15 @@ deployments: # (5)!
 4. **stacks** (optional) augments discovered stacks with profiles, environment, secrets, or project name
 5. **deployments** (optional) defines named groups for targeting specific contexts or stacks
 
+!!! note "Unknown keys are errors"
+    Dockform parses the manifest strictly. A misspelled or unsupported key stops the command and points at the line:
+
+    ```
+    Error: parse yaml: [4:1] unknown field "secrets"
+    >  4 | secrets:
+           ^
+    ```
+
 ## `identifier:`
 
 | Type   | Default |    Required    |
@@ -105,7 +114,7 @@ When a context does **not** specify `host`, the key must match an existing [Dock
 ```yaml
 contexts:
   default: {}                          # Local Docker daemon
-  remote-server:                       # Remote daemon — no Docker context setup needed
+  remote-server:                       # Remote daemon, no Docker context setup needed
     host: ssh://deploy@10.0.0.1
   production:
     host: ssh://deploy@prod.example.com
@@ -123,7 +132,9 @@ contexts:
 
 Optional Docker host URI (e.g., `ssh://user@host`, `tcp://host:2376`, `unix:///var/run/docker.sock`). When set, Dockform uses `DOCKER_HOST` instead of `DOCKER_CONTEXT` for all Docker CLI invocations against this context.
 
-This makes your manifest **portable** — you can clone the project on a new machine and deploy without manually creating Docker contexts first.
+This makes your manifest **portable**: you can clone the project on a new machine and deploy without manually creating Docker contexts first.
+
+For `ssh://` hosts, Dockform opens one SSH tunnel per host for each command by default. See [Performance over SSH](../more/performance_over_ssh.md) for how that works and the other transports.
 
 !!! tip
     When `host` is omitted, the context key must match a Docker context configured on the host machine. You can create one with:
@@ -142,11 +153,14 @@ Each context can also define:
 - `volumes:` - Docker volumes to create
 - `networks:` - Docker networks to create
 
+Both accept `destroy: false` to keep the resource when `dockform destroy` runs. See [Volumes](volumes.md#keeping-a-volume-on-destroy) and [Networks](networks.md#keeping-a-network-on-destroy).
+
 ```yaml
 contexts:
   default:
     volumes:
-      db-data: {}
+      db-data:
+        destroy: false   # keep on destroy
       app-config: {}
     networks:
       frontend:
@@ -199,7 +213,7 @@ my-project/
 | ---- | ------- |:----------:|
 | Map  | `null`  | :lucide-x: |
 
-The stacks block **augments** discovered stacks. It does not create new stacks—it adds configuration to stacks found through discovery.
+The stacks block mainly **augments** discovered stacks: it adds configuration to stacks found through discovery. It can also declare a stack that discovery doesn't find by giving it a `root` and `files` (see [Explicit Stacks](stacks.md#fallback-explicit-stacks)).
 
 Stack keys use the format `context/stack`:
 
@@ -225,9 +239,9 @@ stacks:
 |-------|---------|
 | `profiles` | Compose profiles to activate |
 | `environment.inline` | Additional environment variables |
-| `environment.files` | Additional env files |
 | `secrets.sops` | Additional SOPS-encrypted files |
 | `project.name` | Override Compose project name |
+| `filesets` | Fileset overrides and declarations (see [Filesets](filesets.md)) |
 
 !!! note
     Discovery sets `root`, `files`, and base `env-file`. The stacks block adds to these, it doesn't replace them.
@@ -285,7 +299,7 @@ dockform plan --deployment production
 
 ## Project Structure
 
-A typical Dockform v0.8 project:
+A typical Dockform project:
 
 ```
 my-project/

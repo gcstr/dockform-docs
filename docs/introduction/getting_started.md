@@ -15,7 +15,7 @@ Before you begin, make sure you have the following installed:
 
 - [Docker](https://www.docker.com/) with Docker Compose
 - [SOPS](https://github.com/getsops/sops) and [Age](https://github.com/FiloSottile/age) (for secrets management)
-- [Go](https://go.dev/) (optional, for building from source)
+- [Go](https://go.dev/) (optional, for `go install`)
 
 ### Homebrew
 
@@ -29,12 +29,20 @@ brew install dockform
 ### Go Install
 
 ```bash
-go install github.com/gcstr/dockform@latest
+go install github.com/gcstr/dockform/cmd/dockform@latest
 ```
 
 ### Precompiled Binaries
 
-Download binaries for Linux, macOS, and Windows from [GitHub Releases](https://github.com/gcstr/dockform/releases).
+Download a `.tar.gz` archive for Linux or macOS (amd64 or arm64) from [GitHub Releases](https://github.com/gcstr/dockform/releases) and put the `dockform` binary on your `PATH`:
+
+```bash
+VERSION=v0.10.0
+curl -sSL "https://github.com/gcstr/dockform/releases/download/${VERSION}/dockform_${VERSION}_linux_amd64.tar.gz" | tar -xz dockform
+sudo mv dockform /usr/local/bin/
+```
+
+Windows isn't supported.
 
 ---
 
@@ -46,11 +54,11 @@ Dockform includes a convenience command to scaffold a new project:
 dockform init
 ```
 
-This creates a starter `dockform.yml` manifest file.
+This creates a starter `dockform.yml` manifest file and adds `.dockform/` to your `.gitignore` (Dockform keeps volume snapshots and apply logs there).
 
 ## Project Structure
 
-Dockform v0.8 uses **automatic discovery** based on your directory structure. Organize your project like this:
+Dockform uses **automatic discovery** based on your directory structure. Organize your project like this:
 
 ```
 my-project/
@@ -72,7 +80,7 @@ my-project/
 
 | Directory/File | Purpose |
 |----------------|---------|
-| `<context>/` | Directory matching your Docker context name |
+| `<context>/` | Directory matching a context name from your manifest |
 | `<context>/<stack>/` | Each subdirectory is a stack |
 | `compose.yaml` | Compose file (auto-discovered) |
 | `environment.env` | Environment variables (auto-discovered) |
@@ -129,19 +137,21 @@ dockform plan
 Output:
 ```
 │ Identifier:  quickstart
-│ Contexts:    default
+│ Context:     default
 
-Stacks
-  default/web
-    ↑ nginx will be created
+default
+  Stacks
+    web
+      ↑ nginx will be created
 
 Plan: 1 to create, 0 to change, and 0 to destroy
 ```
 
-By default, `plan` and `apply` show a **changes-only** view: resources that are
-already up to date are collapsed into a per-section `N unchanged` count instead of
-being listed line by line. This keeps the output readable on large, multi-context
-setups. When nothing needs to change, you'll simply see:
+The plan is grouped by Docker context, then by section (volumes, networks,
+stacks, filesets). By default, `plan` and `apply` show a **changes-only** view:
+resources that are already up to date are left out, and so are contexts and
+sections with nothing to do. This keeps the output readable on large,
+multi-context setups. When nothing needs to change, you'll simply see:
 
 ```
 No changes. 3 resources up to date.
@@ -155,6 +165,28 @@ unchanged resource.
 ```bash
 dockform apply
 ```
+
+`apply` shows the plan, asks you to confirm, and then shows one line per
+resource that updates as the work happens. Stacks expand into their services,
+with image pull progress and waits on health checks, and finished groups fold
+into a one-line summary:
+
+```
+Applying 1 resource
+default stack web: starting
+default service web/nginx: pulling
+default service web/nginx: creating…
+default service web/nginx: starting…
+default service web/nginx: created (4.0s)
+default stack web: started (4.2s)
+
+1 of 1 resource applied, 0 failed
+  log: /path/to/my-project/.dockform/logs/apply-20260924-114328.log
+```
+
+That's the plain form you get when the output isn't a terminal, or with
+`--verbose`; in a terminal the same lines update in place. The last line points
+to the run's full log (see [Run logs](../more/debugging.md#run-logs)).
 
 Your nginx container is now running at http://localhost:8080
 
@@ -227,7 +259,7 @@ default/web/
         └── nginx.conf
 ```
 
-The `config` fileset is auto-discovered and synced to a `config` volume.
+The `config` fileset is auto-discovered and synced to a volume named `web_config` (`<stack>_<fileset>`). Reference that name as an `external` volume in your compose file.
 
 ### Stack Augmentation
 

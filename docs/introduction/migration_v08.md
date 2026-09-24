@@ -172,7 +172,18 @@ default/web/
         └── sites/
 ```
 
-Then reference it in your compose file as an external volume.
+Then reference it in your compose file as an external volume. The discovered fileset's volume is named `<stack>_<fileset>`, here `web_nginx-config`.
+
+!!! warning "Keep your existing volume"
+    Your v0.7 fileset wrote to `nginx_config`. After the move it would sync into a new, empty `web_nginx-config` instead, and the old volume would be left behind. To keep using the existing volume, set its name explicitly:
+
+    ```yaml
+    stacks:
+      default/web:
+        filesets:
+          nginx-config:
+            target_volume: nginx_config
+    ```
 
 ## Complete Migration Example
 

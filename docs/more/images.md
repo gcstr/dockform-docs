@@ -110,6 +110,8 @@ dockform images pull --dry-run
 
 Without `--recreate`, the image is downloaded on the daemon but existing containers keep running the old one until they're restarted.
 
+`--recreate` brings containers back with the same environment `dockform apply` would give them, including secrets decrypted from SOPS files.
+
 ### `dockform images upgrade`
 
 Rewrites image tags in your compose files to the newest tag that matches each service's `dockform.tag_pattern`. The change lands in your repo, not on the daemon:

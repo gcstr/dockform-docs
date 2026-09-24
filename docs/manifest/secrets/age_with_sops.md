@@ -23,7 +23,7 @@ Dockform supports encrypting secrets with SOPS using the **age** backend, in add
 
 Define age options under `sops.age`:
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 sops:
   age:
     key_file: ${AGE_KEY_FILE}      # path to your Age private key file
@@ -32,7 +32,7 @@ sops:
 
 You can combine with PGP recipients:
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 sops:
   age:
     key_file: ${AGE_KEY_FILE}
@@ -71,9 +71,9 @@ The output shows your public key, which you can share with others who need to en
 
 ### 2. Configure the manifest
 
-Point Dockform to your age key file in `dockform.yaml`:
+Point Dockform to your age key file in `dockform.yml`:
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 sops:
   age:
     key_file: ${AGE_KEY_FILE}
@@ -119,7 +119,7 @@ All commands honor `sops.age.*` settings from your manifest.
 
 For team environments, you can encrypt files for multiple age recipients:
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 sops:
   age:
     key_file: ${AGE_KEY_FILE}
@@ -183,7 +183,7 @@ jobs:
 Age public keys are safe to share and can be committed to your repository:
 
 ```yaml
-# dockform.yaml - safe to commit
+# dockform.yml - safe to commit
 sops:
   age:
     key_file: ${AGE_KEY_FILE}  # private, via env var
@@ -203,7 +203,7 @@ age-keygen -o ~/.config/sops/age/keys.txt
 
 2. They share their public key (the `age1...` string)
 
-3. Add their public key to the `recipients` list in `dockform.yaml`
+3. Add their public key to the `recipients` list in `dockform.yml`
 
 4. Rekey existing secrets to include the new recipient:
 

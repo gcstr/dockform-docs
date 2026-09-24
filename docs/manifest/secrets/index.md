@@ -20,6 +20,11 @@ declare** which environment variables each service should receive in your
 but services only receive them if you add them to the `environment:` section in your compose file.
 This follows the **principle of least privilege** - not all services should have access to all secrets.
 
+Decrypted values never touch disk. Dockform renders each stack with `docker compose config`, and since that fully interpolated document contains the plaintext secrets, it's piped to `docker compose` over stdin rather than written to a temporary file. The same environment is used by `apply` and by `dockform images pull --recreate`, so recreated containers get their secrets too.
+
+!!! warning "Debug output contains secrets"
+    Setting `DOCKFORM_PRINT_OVERLAY=1` (or `DOCKFORM_DEBUG_OVERLAY=1`) prints that rendered document to stderr, decrypted secrets included. Use it only for local debugging, never in CI logs.
+
 ## Requirements
 
 You need **SOPS** installed. Depending on the backend you choose, install:
@@ -35,11 +40,11 @@ Links:
 
 ## Configuration
 
-Configure SOPS backends under the root `sops` block in your `dockform.yaml`.
+Configure SOPS backends under the root `sops` block in your `dockform.yml`.
 
 === "Age"
 
-    ```yaml title="dockform.yaml"
+    ```yaml title="dockform.yml"
     sops:
       age:
         key_file: ${AGE_KEY_FILE}
@@ -64,7 +69,7 @@ Configure SOPS backends under the root `sops` block in your `dockform.yaml`.
     sops:
       age:
         key_file: ${AGE_KEY_FILE}
-          recipients: ["age1...", "age1..."]
+        recipients: ["age1...", "age1..."]
       pgp:
         keyring_dir: "${GNUPGHOME}"
         recipients: ["0xFINGERPRINT", "dev@example.com"]
@@ -90,9 +95,9 @@ age-keygen -o ~/.config/sops/age/keys.txt
 
 ### 2. Reference the key file in the manifest
 
-Point Dockform to your Age key file inside `dockform.yaml` (directly or via environment variable interpolation):
+Point Dockform to your Age key file inside `dockform.yml` (directly or via environment variable interpolation):
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 sops:
   age:
     key_file: ${AGE_KEY_FILE}
@@ -126,7 +131,7 @@ You can use PGP keys managed by GnuPG.
 
 ### 2. Configure the manifest
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 sops:
   pgp:
     keyring_dir: "~/.gnupg"          # or a dedicated directory
@@ -139,7 +144,7 @@ sops:
 
 Optional for headless CI with loopback:
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 sops:
   pgp:
     keyring_dir: "~/.gnupg"
@@ -173,9 +178,11 @@ DB_PASSWORD=supersecret123
 API_KEY=sk-1234567890abcdef
 ```
 
-### 2. Reference secrets in dockform.yaml
+### 2. Put the file where Dockform discovers it
 
-```yaml title="dockform.yaml"
+Secrets files are discovered by name (`secrets.env` by default), so there's nothing to add to the manifest beyond the `sops` block:
+
+```yaml title="dockform.yml"
 identifier: myapp
 
 sops:
@@ -184,12 +191,23 @@ sops:
 
 contexts:
   default: {}
-
-# Global secrets available to all stacks
-secrets:
-  sops:
-    - ./secrets.env
 ```
+
+Where you put `secrets.env` decides which stacks get it:
+
+```
+my-project/
+├── dockform.yml
+└── default/
+    ├── secrets.env        # shared by every stack in the "default" context
+    ├── web/
+    │   ├── compose.yaml
+    │   └── secrets.env    # only for default/web
+    └── worker/
+        └── compose.yaml
+```
+
+A stack gets its context's `secrets.env` first and then its own, so when both define the same variable, the stack's value wins.
 
 ### 3. Declare environment variables in docker-compose.yml
 
@@ -220,22 +238,19 @@ When you run `dockform apply`:
 3. Docker Compose injects only the explicitly declared variables into each service
 4. Containers receive the secret values as environment variables
 
-### Stack-Specific Secrets
+### Additional secrets files
 
-For stack-specific secrets (not shared across all stacks):
+To give a stack more encrypted files than its discovered `secrets.env`, list them under `secrets.sops`. Relative paths are resolved from the stack's directory:
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 stacks:
   default/web:
     secrets:
       sops:
-        - ./default/web/secrets.env  # Only available to 'web' stack
-
-  default/worker:
-    secrets:
-      sops:
-        - ./default/worker/secrets.env  # Only available to 'worker' stack
+        - database.secrets.env   # default/web/database.secrets.env
 ```
+
+Each file must be SOPS-encrypted dotenv with a `.env` extension. These files are added after the discovered ones.
 
 ## Doctor checks
 
@@ -248,7 +263,7 @@ Run `dockform doctor` to validate your environment.
 
 ### Secrets not appearing in containers
 
-**Problem:** You've configured secrets in `dockform.yaml` but they're not available inside your containers.
+**Problem:** You've configured secrets in `dockform.yml` but they're not available inside your containers.
 
 **Solution:** Make sure you've explicitly declared the environment variables in your `docker-compose.yml`:
 
@@ -306,7 +321,7 @@ variables at runtime and reference them from Compose or the manifest.
 - Set CI environment variables from your secret store.
 - Add them to Dockform `environment.inline` to ensure Compose receives them during planning and apply.
 
-=== "dockform.yaml"
+=== "dockform.yml"
 
     ```yaml
     identifier: production
@@ -351,25 +366,23 @@ variables at runtime and reference them from Compose or the manifest.
           # Provide secrets from GitHub Actions to the process environment
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           OIDC_CLIENT_SECRET: ${{ secrets.OIDC_CLIENT_SECRET }}
-          # Optional: set a stable run identifier for scoping
-          DOCKFORM_RUN_ID: production
+          DOCKFORM_VERSION: v0.10.0
         steps:
           - uses: actions/checkout@v4
 
           - name: Install Dockform
             run: |
-              curl -L https://github.com/gcstr/dockform/releases/latest/download/dockform_linux_amd64 -o dockform
-              chmod +x dockform
+              curl -sSL "https://github.com/gcstr/dockform/releases/download/${DOCKFORM_VERSION}/dockform_${DOCKFORM_VERSION}_linux_amd64.tar.gz" | tar -xz dockform
               sudo mv dockform /usr/local/bin/dockform
 
           - name: Plan
-            run: dockform plan -c .
+            run: dockform plan --manifest .
 
           - name: Apply
-            run: dockform apply -c .
+            run: dockform apply --manifest .
     ```
 
 Notes:
 
-- Environment variable interpolation (`${VAR}`) in `dockform.yaml` occurs at load time using the runner’s environment.
+- Environment variable interpolation (`${VAR}`) in `dockform.yml` occurs at load time using the runner’s environment.
 - You can mix CI-managed env vars with SOPS-managed secrets if needed.

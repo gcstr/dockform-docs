@@ -5,7 +5,9 @@ icon: lucide/between-vertical-start
 
 # Interpolation
 
-The manifest file accepts interpolation in the same format as Docker Compose files. Any text enclosed in `${}` is treated as a variable and replaced at runtime with the value from the current environment.
+The manifest supports `${VAR}` interpolation: each `${VAR}` is replaced with the value of `VAR` from the environment when Dockform loads the manifest.
+
+Only the plain `${VAR}` form is supported. Compose's extras such as `${VAR:-default}` or `${VAR:?error}` don't work in the manifest (they still work inside your compose files, which Compose interpolates itself). If a variable isn't set, it becomes an empty string and Dockform prints a warning naming it. Run `dockform manifest render` to see the manifest after interpolation.
 
 ## Example
 
@@ -14,7 +16,7 @@ The manifest file accepts interpolation in the same format as Docker Compose fil
 $ export AGE_KEY_FILE=~/.config/sops/age/keys.txt
 ```
 
-=== "dockform.yaml"
+=== "dockform.yml"
 
     ```yaml hl_lines="8"
     identifier: my_project
@@ -27,7 +29,7 @@ $ export AGE_KEY_FILE=~/.config/sops/age/keys.txt
         key_file: ${AGE_KEY_FILE}
     ```
 
-=== "dockform.yaml (rendered)"
+=== "dockform.yml (rendered)"
 
     ```yaml hl_lines="8"
     identifier: my_project
@@ -47,7 +49,7 @@ file while still making them available at runtime.
 
 E.g.:
 
-=== "dockform.yaml"
+=== "dockform.yml"
 
     ```yaml
     stacks:

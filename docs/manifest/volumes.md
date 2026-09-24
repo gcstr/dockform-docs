@@ -17,7 +17,7 @@ This replaces imperative `docker volume create` commands with a single source of
 
 Declare volumes under each context in your manifest:
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 identifier: staging
 
 contexts:
@@ -53,7 +53,6 @@ volumes:
 
 - With `external: true`, Docker Compose expects a pre-existing volume
 - Dockform ensures the volume exists during `apply`
-- You can use environment expansion for dynamic names: `name: "${DOCKFORM_RUN_ID}_vol"`
 
 ## Volumes from Filesets
 
@@ -69,7 +68,7 @@ default/web/
         └── nginx.conf
 ```
 
-The volume for the `config` fileset is created even if not explicitly declared. You can still list it under `contexts.default.volumes` for clarity.
+The `config` fileset's volume, `web_config` (`<stack>_<fileset>`), is created even if not explicitly declared. You can still list it under `contexts.default.volumes` for clarity, or to mark it [`destroy: false`](#keeping-a-volume-on-destroy).
 
 ## Multi-Context Volumes
 
@@ -99,7 +98,44 @@ contexts:
 | -- | -- |
 | **plan** | Shows which volumes will be created or removed relative to your manifest and labeled resources. |
 | **apply** | Creates missing volumes, labels them with `io.dockform.identifier=<identifier>`, then syncs filesets and runs compose. |
-| **destroy** | Removes all labeled volumes for the current identifier. |
+| **destroy** | Removes all labeled volumes for the current identifier, except the ones marked `destroy: false`. |
+
+### Keeping a volume on destroy
+
+Mark a volume `destroy: false` to have `dockform destroy` leave it in place. This is useful for data volumes you want to keep and remove by hand:
+
+```yaml title="dockform.yml"
+contexts:
+  default:
+    volumes:
+      db-data:
+        destroy: false
+      scratch: {}
+```
+
+`dockform destroy` then lists `db-data` as `kept (destroy: false)` and removes everything else. If a fileset writes into a kept volume, the volume is still kept. When everything left in scope is kept, destroy prints "Nothing to destroy" and skips the confirmation prompt.
+
+!!! warning "The protection lives in the manifest"
+    `destroy: false` only protects a volume while its entry is in the manifest, and it only applies to `dockform destroy`. If you delete the entry, the next `plan` shows the volume as `will be deleted`, and `apply` removes it once you confirm. This works like Terraform's `prevent_destroy`.
+
+### Volumes that already exist
+
+Docker sets a volume's labels only when it creates the volume, so Dockform can't take over one that already exists without its `io.dockform.identifier` label. `plan` reports such a volume as `exists (unlabeled, not managed by dockform)` and leaves it alone:
+
+- `apply` doesn't recreate it, relabel it, or touch its data
+- filesets that target it still sync into it
+- `destroy` never removes it, because Dockform only removes volumes carrying its label
+
+To bring an existing volume under Dockform, recreate it through Dockform and move the data across with a snapshot:
+
+```bash
+dockform volume snapshot db-data     # 1. save the data
+docker volume rm db-data             # 2. remove the unlabeled volume (stop its containers first)
+dockform apply                       # 3. Dockform recreates it with its label
+dockform volume restore db-data <snapshot-path> --stop-containers --force   # 4. put the data back
+```
+
+`apply` starts the stack again in step 3, so the containers may already have written into the new volume. `--stop-containers` stops them during the restore, and `--force` lets the restore overwrite whatever they wrote. The volume has to be declared under `contexts.<context>.volumes` (or be a fileset target) for step 3 to recreate it.
 
 ### Snapshots and Restore
 
@@ -111,7 +147,7 @@ Dockform offers portable volume snapshots:
 dockform volume snapshot <volume>
 ```
 
-Creates `.tar.zst` plus a JSON sidecar under `.dockform/snapshots/<volume>/`.
+Creates `.tar.zst` plus a JSON sidecar under `.dockform/snapshots/<context>/<volume>/`.
 
 #### Restore
 
@@ -129,7 +165,7 @@ Snapshots work for both local and remote Docker contexts.
 
 ## Example
 
-=== "dockform.yaml"
+=== "dockform.yml"
 
     ```yaml
     identifier: staging

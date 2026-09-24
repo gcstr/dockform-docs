@@ -24,7 +24,7 @@ Dockform supports encrypting secrets with SOPS using the **PGP (GnuPG)** backend
 
 Define PGP options under `sops.pgp`:
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 sops:
   pgp:
     keyring_dir: "~/.gnupg"      # GNUPGHOME; supports ~/ expansion
@@ -36,7 +36,7 @@ sops:
 
 You can combine with Age recipients:
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 sops:
   age:
     key_file: ${AGE_KEY_FILE}
@@ -61,7 +61,7 @@ All commands honor `sops.pgp.*` and `sops.age.*` settings.
 
 For headless runners without interactive pinentry, use loopback mode:
 
-```yaml title="dockform.yaml"
+```yaml title="dockform.yml"
 sops:
   pgp:
     keyring_dir: "/opt/ci/gnupg"

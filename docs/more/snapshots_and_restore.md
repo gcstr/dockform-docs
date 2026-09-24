@@ -73,8 +73,8 @@ The JSON metadata file includes:
 
 ```json
 {
-  "dockform_version": "0.5.1",
-  "created_at": "2023-10-04T15:30:45Z",
+  "dockform_version": "0.10.0",
+  "created_at": "2026-09-24T15:30:45Z",
   "volume_name": "myapp_data",
   "spec_hash": "a1b2c3d4",
   "driver": "local",
@@ -112,7 +112,7 @@ The volume accepts the same `context/volume` form as `snapshot` (and follows the
 
 Example:
 ```bash
-dockform volume restore server-two/myapp_data ./.dockform/snapshots/server-two/myapp_data/2023-10-04T15-30-45Z__spec-a1b2c3d4.tar.zst
+dockform volume restore server-two/myapp_data ./.dockform/snapshots/server-two/myapp_data/2026-09-24T15-30-45Z__spec-a1b2c3d4.tar.zst
 ```
 
 ### Restore Options
@@ -190,19 +190,16 @@ dockform volume restore myapp_data snapshot.tar.zst --stop-containers
 
 1. **Test restores**: Regularly test restore procedures in non-production environments
 
-2. **Staged approach**: For production restores, consider:
+2. **Let Dockform handle the containers**: `--stop-containers` stops every container using the volume, restores, and starts the ones that were running again, even if the restore fails:
    ```bash
-   # 1. Stop stack containers
-   docker compose stop app
-
-   # 2. Restore data volume
-   dockform volume restore myapp_data backup.tar.zst --force
-
-   # 3. Start containers
-   docker compose start app
+   dockform volume restore myapp_data backup.tar.zst --stop-containers --force
    ```
 
 3. **Verification**: Always verify data integrity after restore
+
+### Bringing an existing volume under Dockform
+
+A volume created outside Dockform has no `io.dockform.identifier` label, and Docker can't add one afterwards. Snapshot it, remove it, let `dockform apply` recreate it with the label, then restore the snapshot. The steps are in [Volumes that already exist](../manifest/volumes.md#volumes-that-already-exist).
 
 ### Migration Scenarios
 
@@ -210,16 +207,17 @@ For moving data between environments:
 
 1. **Source environment**:
    ```bash
-   dockform volume snapshot production_data -o /shared/backups/
+   dockform volume snapshot production/app_data -o /shared/backups/
+   # writes /shared/backups/production/app_data/<timestamp>__spec-<hash>.tar.zst
    ```
 
 2. **Target environment**:
    ```bash
-   # Ensure volume exists
-   dockform apply
+   # Ensure the volume exists (it must be declared in the manifest)
+   dockform apply --context staging
 
    # Restore data
-   dockform volume restore production_data /shared/backups/production_data/snapshot.tar.zst --force
+   dockform volume restore staging/app_data /shared/backups/production/app_data/<timestamp>__spec-<hash>.tar.zst --force
    ```
 
 ## Troubleshooting
@@ -231,8 +229,8 @@ For moving data between environments:
 - Run `dockform apply` to create missing volumes
 
 **"Volume not defined in manifest"**
-- Add the volume to your `dockform.yaml` file
-- Volumes must be explicitly declared to be restored
+- Add the volume to your `dockform.yml` file
+- A volume can be restored only if it's declared under `contexts.<context>.volumes` or is the target of a fileset
 
 **"Checksum mismatch"**
 - Snapshot file may be corrupted
