@@ -238,19 +238,24 @@ When you run `dockform apply`:
 3. Docker Compose injects only the explicitly declared variables into each service
 4. Containers receive the secret values as environment variables
 
-### Additional secrets files
+### Stacks outside the conventional layout
 
-To give a stack more encrypted files than its discovered `secrets.env`, list them under `secrets.sops`. Relative paths are resolved from the stack's directory:
+An explicit stack (declared with `root:` because it doesn't follow the `<context>/<stack>/` layout) isn't discovered, so no `secrets.env` is loaded for it automatically. List its encrypted files under `secrets.sops`. Relative paths are resolved from the stack's `root`:
 
 ```yaml title="dockform.yml"
 stacks:
-  default/web:
+  default/legacy:
+    root: ./apps/legacy
+    files: [docker-compose.yml]
     secrets:
       sops:
-        - database.secrets.env   # default/web/database.secrets.env
+        - secrets/app.env   # apps/legacy/secrets/app.env
 ```
 
-Each file must be SOPS-encrypted dotenv with a `.env` extension. These files are added after the discovered ones.
+Each file must be SOPS-encrypted dotenv with a `.env` extension.
+
+!!! warning "Deprecated for discovered stacks"
+    `secrets.sops` on a discovered stack adds files next to the `secrets.env` it already loads. That still works, but Dockform warns about it and it will be removed in a future release. Move those values into the stack's `secrets.env`.
 
 ## Doctor checks
 

@@ -112,6 +112,8 @@ Without `--recreate`, the image is downloaded on the daemon but existing contain
 
 `--recreate` brings containers back with the same environment `dockform apply` would give them, including secrets decrypted from SOPS files.
 
+Because `--recreate` restarts running services, it first lists each stack's services with their new images and asks you to type `yes`, like `apply` does. In scripts and CI, pass `--skip-confirmation` to skip the prompt. A plain `pull` never asks, since it only downloads images.
+
 ### `dockform images upgrade`
 
 Rewrites image tags in your compose files to the newest tag that matches each service's `dockform.tag_pattern`. The change lands in your repo, not on the daemon:

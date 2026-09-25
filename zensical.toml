@@ -39,6 +39,7 @@ nav = [
       { "Dashboard" = "more/dashboard.md" },
       { "Performance over SSH" = "more/performance_over_ssh.md" },
       { "Debugging" = "more/debugging.md" },
+      { "AI Agents" = "more/ai_agents.md" },
     ]},
   ]},
   { "CLI Reference" = [

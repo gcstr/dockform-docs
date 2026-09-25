@@ -37,6 +37,7 @@ Dockform is a thin declarative layer on Docker Compose. You describe stacks, ext
 - [Image management](https://dockform.io/more/images/)
 - [Performance over SSH](https://dockform.io/more/performance_over_ssh/)
 - [Debugging](https://dockform.io/more/debugging/)
+- [AI agents](https://dockform.io/more/ai_agents/)
 - [Migrating to v0.8](https://dockform.io/introduction/migration_v08/)
 - [Why not X?](https://dockform.io/introduction/why_not_x/)
 

@@ -36,6 +36,7 @@ Repository: https://github.com/gcstr/dockform
 - [Image management](https://dockform.io/more/images/): checking, pulling and upgrading images.
 - [Performance over SSH](https://dockform.io/more/performance_over_ssh/): SSH transports (tunnel, mux, direct), --parallel, MaxSessions.
 - [Debugging](https://dockform.io/more/debugging/): troubleshooting, diagnostics and apply run logs.
+- [AI agents](https://dockform.io/more/ai_agents/): `dockform llm` and `dockform llm setup`, to give AI coding agents the context they need.
 
 ## CLI reference: top-level
 
