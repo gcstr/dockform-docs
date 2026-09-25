@@ -269,6 +269,7 @@ summary tells you the path.
 - Dockform keeps the 10 newest run logs and deletes older ones. It never touches other files in that directory.
 - If the manifest directory isn't writable, the log goes to your user config directory instead (`~/.config/dockform/logs` on Linux) and Dockform tells you where.
 - `--log-file` replaces the run log rather than adding a second copy.
+- Only your user can read the logs: the log directory is created `0700` and each log file `0600`.
 
 Run logs can contain details about your hosts, so keep them out of git.
 `dockform init` adds `.dockform/` to your `.gitignore`, and `apply` warns if the
