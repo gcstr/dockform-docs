@@ -22,6 +22,8 @@ dockform llm
 
 The project section is built from the manifest and the stack directories on your machine. Dockform doesn't contact any Docker host for it, and it shows names and paths, never secret values. Use `--no-project` to leave it out.
 
+The guide itself doesn't change during a session, so an agent needs it once. After adding or moving stacks, secrets or filesets, `dockform llm --project-only` refreshes just the project section, at a fraction of the size. The section tells agents to do exactly that.
+
 The guide matches the Dockform version you have installed, so an agent never learns flags or keys your version doesn't have.
 
 ## Load it automatically
