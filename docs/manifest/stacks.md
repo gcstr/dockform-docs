@@ -92,11 +92,6 @@ stacks:
         - LOG_LEVEL=info
     project:
       name: web-prod
-  
-  default/api:
-    secrets:
-      sops:
-        - extra-secrets.env
 ```
 
 ### Augmentation Fields
@@ -105,7 +100,6 @@ stacks:
 |-------|---------|---------|
 | `profiles` | Compose profiles to activate | `[production, debug]` |
 | `environment.inline` | Additional env vars | `[DEBUG=false]` |
-| `secrets.sops` | Additional SOPS files | `[api-secrets.env]` |
 | `project.name` | Override the Compose project name (see [Project names](#project-names)) | `web-prod` |
 | `filesets` | Fileset overrides/declarations | See [Filesets](filesets.md) |
 
@@ -131,6 +125,18 @@ stacks:
     profiles: [production]
 ```
 
+An explicit stack isn't discovered, so its `environment.env` and `secrets.env` aren't loaded automatically. Use `env-file` for environment files and `secrets.sops` for encrypted ones:
+
+```yaml
+stacks:
+  default/legacy-app:
+    root: ./apps/legacy
+    files: [docker-compose.yml]
+    env-file: [app.env]
+    secrets:
+      sops: [secrets/app.env]
+```
+
 This is useful when:
 
 - Your directory structure doesn't match the `<context>/<stack>/` convention
@@ -152,7 +158,7 @@ Secrets are loaded from:
 
 1. **Discovered `secrets.env`** in the context directory (`<context>/secrets.env`), shared by every stack in that context
 2. **Discovered `secrets.env`** in the stack directory
-3. **Augmented `secrets.sops`** from the `stacks:` block, with paths relative to the stack directory
+3. **`secrets.sops`** from the `stacks:` block, for [explicit stacks](#fallback-explicit-stacks), with paths relative to the stack's `root`. On a discovered stack it still works but is deprecated: put those values in the stack's `secrets.env`.
 
 All of them are SOPS-encrypted dotenv files. For duplicate keys, the stack's own file wins over the context's. See [Secrets](secrets/index.md).
 
